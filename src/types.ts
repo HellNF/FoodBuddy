@@ -287,6 +287,7 @@ export interface Settings {
   notif_weight: number;
   notif_weight_warn_days: number;   // default 3
   notif_weight_urgent_days: number; // default 7
+  onboarding_complete?: number;     // 0 or 1
 }
 
 export interface WeightEntry {

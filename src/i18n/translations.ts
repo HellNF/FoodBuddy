@@ -737,6 +737,19 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'achievements.title':       'Your achievements',
     'achievements.locked':      'Locked',
     'achievements.nextLevel':   'points to next level',
+
+    'onboarding.welcome':       'Welcome to LifeBuddy',
+    'onboarding.subtitle':      'Your daily life companion',
+    'onboarding.start':         'Get started →',
+    'onboarding.goals':         'What do you want to improve?',
+    'onboarding.goalsSubtitle': 'Select at least one goal',
+    'onboarding.setup':         'Quick setup',
+    'onboarding.setupSubtitle': 'These can be changed later in Settings',
+    'onboarding.ready':         'All set!',
+    'onboarding.readySubtitle': 'Earn points by completing daily activities!',
+    'onboarding.begin':         'Start your journey 🚀',
+    'onboarding.back':          'Back',
+    'onboarding.next':          'Next',
   },
 
   it: {
@@ -1472,5 +1485,18 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'achievements.title':       'I tuoi traguardi',
     'achievements.locked':      'Bloccato',
     'achievements.nextLevel':   'punti al prossimo livello',
+
+    'onboarding.welcome':       'Benvenuto in LifeBuddy',
+    'onboarding.subtitle':      'Il tuo compagno di vita quotidiana',
+    'onboarding.start':         'Inizia →',
+    'onboarding.goals':         'Cosa vuoi migliorare?',
+    'onboarding.goalsSubtitle': 'Seleziona almeno un obiettivo',
+    'onboarding.setup':         'Configurazione rapida',
+    'onboarding.setupSubtitle': 'Questi valori si possono modificare in Impostazioni',
+    'onboarding.ready':         'Tutto pronto!',
+    'onboarding.readySubtitle': 'Guadagna punti completando attività quotidiane!',
+    'onboarding.begin':         'Inizia il tuo viaggio 🚀',
+    'onboarding.back':          'Indietro',
+    'onboarding.next':          'Avanti',
   },
 };

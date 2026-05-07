@@ -13,6 +13,7 @@ function registerSettingsIpc() {
       language: 'en', theme: 'dark',
       tol_1: 5, tol_2: 10, tol_3: 20,
       pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
+      onboarding_complete: 0,
     };
     const stringKeys = new Set(['language', 'theme']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {

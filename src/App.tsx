@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { api } from './api';
 import { SettingsProvider, useSettings } from './hooks/useSettings';
 import { NavigationProvider, useNavigate } from './hooks/useNavigate';
 import { ToastProvider, useToast } from './components/Toast';
@@ -30,11 +31,12 @@ import JournalPage from './pages/JournalPage';
 import AchievementsPage from './pages/AchievementsPage';
 
 import Nav from './components/Nav';
+import Onboarding from './components/Onboarding';
 
 // ── Inner app (has access to contexts) ───────────────────────────────────────
 
 function AppInner() {
-  const { settings } = useSettings();
+  const { settings, loading } = useSettings();
   const { page, param, navigate } = useNavigate();
   const { showToast } = useToast();
   const { t } = useT();
@@ -46,12 +48,23 @@ function AppInner() {
     document.body.classList.toggle('light', settings.theme === 'light');
   }, [settings.theme]);
 
+  const handleOnboardingComplete = async () => {
+    await window.electronAPI.invoke('settings:save', { onboarding_complete: 1 });
+    await api.gamification.addPoints({ module: 'onboarding', reason: 'welcome', points: 0 }).catch(() => {});
+    window.location.reload();
+  };
+
   // Listen for main process shortcut:quickAdd
   useEffect(() => {
     const handler = () => navigate('dashboard');
     window.electronAPI?.on('shortcut:quickAdd', handler);
     return () => window.electronAPI?.off('shortcut:quickAdd');
   }, [navigate]);
+
+  // Show onboarding for new users (loading guard prevents flicker)
+  if (!loading && settings.onboarding_complete !== 1) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg text-text">
