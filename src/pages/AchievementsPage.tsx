@@ -12,7 +12,8 @@ const LEVELS = [
   { min: 1000, level: 5, name: 'LifeMaster' },
 ];
 
-function LevelStatusCard({ status }: { status: UserLevel; t: (k: string) => string }) {
+function LevelStatusCard({ status }: { status: UserLevel }) {
+  const { t } = useT();
   const totalPoints = status.total_points ?? 0;
   const nextMin = status.next_level_min;
   const progress = nextMin != null && nextMin > 0 ? Math.min(totalPoints / nextMin, 1) : 1;
@@ -73,7 +74,7 @@ function LevelStatusCard({ status }: { status: UserLevel; t: (k: string) => stri
           </div>
           <div style={{ fontSize: 11, color: 'var(--fb-text-3)', display: 'flex', justifyContent: 'space-between' }}>
             <span>{totalPoints} / {nextMin} pt</span>
-            <span>{nextMin - totalPoints} punti al prossimo livello</span>
+            <span>{nextMin - totalPoints} {t('achievements.nextLevel')}</span>
           </div>
         </>
       )}
@@ -103,7 +104,8 @@ function LevelStatusCard({ status }: { status: UserLevel; t: (k: string) => stri
   );
 }
 
-function AchievementCell({ a }: { a: Achievement; t: (k: string) => string }) {
+function AchievementCell({ a }: { a: Achievement }) {
+  const { t } = useT();
   const unlocked = a.unlocked_at != null;
 
   return (
@@ -127,7 +129,7 @@ function AchievementCell({ a }: { a: Achievement; t: (k: string) => string }) {
         )}
         {!unlocked && (
           <div style={{ fontSize: 10, color: 'var(--fb-text-3)', marginTop: 6, fontStyle: 'italic' }}>
-            Bloccato
+            {t('achievements.locked')}
           </div>
         )}
       </div>
@@ -189,7 +191,7 @@ export default function AchievementsPage() {
       </header>
 
       {/* Level status */}
-      {status && <LevelStatusCard status={status} t={t} />}
+      {status && <LevelStatusCard status={status} />}
 
       {/* Achievements grid */}
       {achievements.length > 0 && (
@@ -198,7 +200,7 @@ export default function AchievementsPage() {
             <>
               <div style={{ ...eyebrow, marginBottom: 12 }}>SBLOCCATI ({unlocked.length})</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-                {unlocked.map(a => <AchievementCell key={a.id} a={a} t={t} />)}
+                {unlocked.map(a => <AchievementCell key={a.id} a={a} />)}
               </div>
             </>
           )}
@@ -206,7 +208,7 @@ export default function AchievementsPage() {
             <>
               <div style={{ ...eyebrow, marginBottom: 12 }}>DA SBLOCCARE ({locked.length})</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-                {locked.map(a => <AchievementCell key={a.id} a={a} t={t} />)}
+                {locked.map(a => <AchievementCell key={a.id} a={a} />)}
               </div>
             </>
           )}
