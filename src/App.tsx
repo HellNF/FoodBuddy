@@ -26,6 +26,7 @@ import SleepPage from './pages/SleepPage';
 import TasksPage from './pages/TasksPage';
 import HabitsPage from './pages/HabitsPage';
 import FocusPage from './pages/FocusPage';
+import JournalPage from './pages/JournalPage';
 
 import Nav from './components/Nav';
 
@@ -77,6 +78,7 @@ function AppInner() {
         {page === 'tasks'        && <TasksPage />}
         {page === 'habits'       && <HabitsPage />}
         {page === 'focus'        && <FocusPage />}
+        {page === 'journal'      && <JournalPage />}
       </main>
     </div>
   );

@@ -15,6 +15,7 @@ import type {
   Task, TaskCompletionRate,
   Habit, HabitWeekStat,
   FocusSession, FocusDayStats, FocusWeekPoint,
+  MoodEntry, MoodTrendPoint,
 } from './types';
 
 // Re-export for consumers that need it
@@ -333,6 +334,14 @@ export const api = {
       invoke<FocusWeekPoint[]>('focus:getWeekStats', { from, to }),
     getActiveSession: () =>
       invoke<FocusSession | null>('focus:getActiveSession'),
+  },
+
+  mood: {
+    get:    (date: string) => invoke<MoodEntry | null>('mood:get', { date }),
+    upsert: (data: { date: string; mood?: number; energy?: number; stress?: number; note?: string }) =>
+              invoke<MoodEntry>('mood:upsert', data),
+    range:  (from: string, to: string) => invoke<MoodTrendPoint[]>('mood:range', { from, to }),
+    delete: (date: string) => invoke<{ ok: boolean }>('mood:delete', { date }),
   },
 
   notifications: {

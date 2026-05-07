@@ -698,6 +698,19 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'focus.completed':      'Session complete!',
     'focus.totalMin':       'focus minutes today',
     'focus.startPomodoro':  'Start Pomodoro',
+
+    'nav.journal':          'Journal',
+    'journal.eyebrow':      'JOURNAL',
+    'journal.moodEyebrow':  'MOOD',
+    'journal.title':        'Mood & wellness',
+    'journal.mood':         'Mood',
+    'journal.energy':       'Energy',
+    'journal.stress':       'Stress',
+    'journal.note':         'Notes',
+    'journal.notePlaceholder': 'How are you feeling today?',
+    'journal.saved':        'Saved!',
+    'journal.empty':        'No data',
+    'journal.update':       'Update',
   },
 
   it: {
@@ -1394,5 +1407,18 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'focus.completed':      'Sessione completata!',
     'focus.totalMin':       'minuti di focus oggi',
     'focus.startPomodoro':  'Avvia Pomodoro',
+
+    'nav.journal':          'Diario',
+    'journal.eyebrow':      'DIARIO',
+    'journal.moodEyebrow':  'UMORE',
+    'journal.title':        'Umore & benessere',
+    'journal.mood':         'Umore',
+    'journal.energy':       'Energia',
+    'journal.stress':       'Stress',
+    'journal.note':         'Note',
+    'journal.notePlaceholder': 'Come ti senti oggi?',
+    'journal.saved':        'Salvato!',
+    'journal.empty':        'Nessun dato',
+    'journal.update':       'Aggiorna',
   },
 };

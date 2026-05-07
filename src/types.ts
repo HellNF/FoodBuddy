@@ -575,7 +575,8 @@ export type PageName =
   | 'sleep'
   | 'tasks'
   | 'habits'
-  | 'focus';
+  | 'focus'
+  | 'journal';
 
 export type NotificationType =
   | 'pantry_expiry'
@@ -664,6 +665,25 @@ export interface FocusSession {
   note: string | null;
   completed: number; // 0 or 1
   created_at: string;
+}
+
+// ── Journal / Mood ────────────────────────────────────────────────────────────
+
+export interface MoodEntry {
+  id: number;
+  date: string;
+  mood: number | null;
+  energy: number | null;
+  stress: number | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface MoodTrendPoint {
+  date: string;
+  mood: number | null;
+  energy: number | null;
+  stress: number | null;
 }
 
 export interface FocusDayStats {

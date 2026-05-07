@@ -130,6 +130,26 @@ function registerUndoIpc() {
         );
         return { action, description: 'focus session delete' };
 
+      case 'mood:upsert':
+        if (data.old == null) {
+          db.prepare('DELETE FROM mood_log WHERE date = ?').run(data.date);
+        } else {
+          db.prepare(`
+            INSERT OR REPLACE INTO mood_log (date, mood, energy, stress, note, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).run(data.old.date, data.old.mood, data.old.energy, data.old.stress,
+                 data.old.note, data.old.created_at);
+        }
+        return { action, description: 'mood entry' };
+
+      case 'mood:delete':
+        db.prepare(`
+          INSERT OR REPLACE INTO mood_log (date, mood, energy, stress, note, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(data.row.date, data.row.mood, data.row.energy, data.row.stress,
+               data.row.note, data.row.created_at);
+        return { action, description: 'mood entry' };
+
       default:
         return null;
     }
