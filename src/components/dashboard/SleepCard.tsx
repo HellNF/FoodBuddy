@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../api';
 import { useT } from '../../i18n/useT';
 import { useNavigate } from '../../hooks/useNavigate';
-import { fbCard } from '../../lib/fbStyles';
+import { cardOuter, eyebrow } from '../../lib/fbUI';
 import type { SleepEntry } from '../../types';
 
 function formatDuration(min: number | null): string {
@@ -37,16 +37,9 @@ export default function SleepCard() {
   const quality  = entry?.quality ?? 0;
 
   return (
-    <div style={fbCard}>
+    <div style={cardOuter}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="var(--fb-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-text-2)' }}>
-          {t('nav.sleep')}
-        </span>
-      </div>
+      <div style={eyebrow}>SONNO</div>
 
       {/* Duration display */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
