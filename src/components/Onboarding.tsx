@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { serifItalic, cardOuter } from '../lib/fbUI';
 import { api } from '../api';
@@ -149,9 +149,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const { t } = useT();
 
   const [step, setStep] = useState(0);
-  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
-  const [animating, setAnimating] = useState(false);
-  const [visibleStep, setVisibleStep] = useState(0);
 
   const [objectives, setObjectives] = useState<Set<ObjectiveKey>>(new Set());
   const [setup, setSetup] = useState<SetupValues>({
@@ -164,26 +161,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [completing, setCompleting] = useState(false);
 
   const TOTAL_STEPS = 4;
-  const prevStepRef = useRef(step);
-
-  // Animate step transitions
-  useEffect(() => {
-    if (prevStepRef.current === step) return;
-    prevStepRef.current = step;
-    // visibleStep is updated after animation
-  }, [step]);
 
   function goTo(nextStep: number) {
-    if (animating) return;
-    const dir = nextStep > step ? 'forward' : 'back';
-    setDirection(dir);
-    setAnimating(true);
-    // After exit animation, switch step
-    setTimeout(() => {
-      setVisibleStep(nextStep);
-      setStep(nextStep);
-      setAnimating(false);
-    }, 280);
+    setStep(nextStep);
   }
 
   function handleNext() {
@@ -223,29 +203,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     onComplete();
   }
 
-  // Slide/fade animation styles
-  const exitStyle = animating
-    ? {
-        opacity: 0,
-        transform: direction === 'forward' ? 'translateX(-40px)' : 'translateX(40px)',
-      }
-    : {};
-
-  const stepStyle = (stepIdx: number): React.CSSProperties => {
-    const isVisible = stepIdx === visibleStep;
-    if (!isVisible) return { display: 'none' };
-
-    return {
-      position: 'absolute' as const,
-      inset: 0,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px 24px',
-      transition: `opacity .28s ${SPRING}, transform .28s ${SPRING}`,
-      ...exitStyle,
-    };
+  // Step container style — uses key-based remount + CSS slideIn animation
+  const stepContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 24px',
+    flex: 1,
+    animation: `slideIn 280ms cubic-bezier(0.16,1,0.3,1)`,
   };
 
   // ── Button styles ─────────────────────────────────────────────────────────
@@ -305,11 +271,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         flex: 1,
         display: 'flex', flexDirection: 'column',
       }}>
-        {/* Steps wrapper */}
-        <div style={{ position: 'relative', flex: 1 }}>
+        {/* Steps wrapper — key forces remount + CSS slideIn on each step change */}
+        <div key={step} style={stepContainerStyle}>
 
           {/* ── Step 0: Welcome ─────────────────────────────────────────── */}
-          <div style={stepStyle(0)}>
+          {step === 0 && (
             <div style={{
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', gap: 32,
@@ -384,10 +350,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 {t('onboarding.start')}
               </button>
             </div>
-          </div>
+          )}
 
           {/* ── Step 1: Goals ───────────────────────────────────────────── */}
-          <div style={stepStyle(1)}>
+          {step === 1 && (
             <div style={{
               display: 'flex', flexDirection: 'column',
               gap: 24, width: '100%', maxWidth: 400,
@@ -398,7 +364,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   textTransform: 'uppercase', color: 'var(--fb-amber)',
                   marginBottom: 8,
                 }}>
-                  Passo 2 di 4
+                  {t('onboarding.step').replace('{current}', '2').replace('{total}', '4')}
                 </div>
                 <h2 style={{
                   ...serifItalic,
@@ -416,22 +382,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <ObjectiveCard
-                  icon="🌙" label="Dormire meglio"
+                  icon="🌙" label={t('onboarding.goal.sleep')}
                   selected={objectives.has('sleep')}
                   onToggle={() => toggleObjective('sleep')}
                 />
                 <ObjectiveCard
-                  icon="🥗" label="Mangiare sano"
+                  icon="🥗" label={t('onboarding.goal.diet')}
                   selected={objectives.has('diet')}
                   onToggle={() => toggleObjective('diet')}
                 />
                 <ObjectiveCard
-                  icon="💪" label="Allenarmi"
+                  icon="💪" label={t('onboarding.goal.exercise')}
                   selected={objectives.has('exercise')}
                   onToggle={() => toggleObjective('exercise')}
                 />
                 <ObjectiveCard
-                  icon="🧠" label="Essere più produttivo"
+                  icon="🧠" label={t('onboarding.goal.focus')}
                   selected={objectives.has('focus')}
                   onToggle={() => toggleObjective('focus')}
                 />
@@ -443,7 +409,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   margin: 0, textAlign: 'center',
                   fontWeight: 500,
                 }}>
-                  Seleziona almeno un obiettivo per continuare
+                  {t('onboarding.selectError')}
                 </p>
               )}
 
@@ -461,10 +427,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </button>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── Step 2: Quick Setup ─────────────────────────────────────── */}
-          <div style={stepStyle(2)}>
+          {step === 2 && (
             <div style={{
               display: 'flex', flexDirection: 'column',
               gap: 24, width: '100%', maxWidth: 400,
@@ -475,7 +441,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   textTransform: 'uppercase', color: 'var(--fb-amber)',
                   marginBottom: 8,
                 }}>
-                  Passo 3 di 4
+                  {t('onboarding.step').replace('{current}', '3').replace('{total}', '4')}
                 </div>
                 <h2 style={{
                   ...serifItalic,
@@ -494,16 +460,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <div style={{ ...cardOuter, gap: 18 }}>
                 {/* Name — always shown */}
                 <LabeledInput
-                  label="Nome (opzionale)"
+                  label={t('onboarding.nameLabel')}
                   type="text"
                   value={setup.userName}
                   onChange={v => setSetup(s => ({ ...s, userName: v }))}
-                  placeholder="Come ti chiami?"
+                  placeholder={t('onboarding.namePlaceholder')}
                 />
 
                 {objectives.has('sleep') && (
                   <LabeledInput
-                    label="Orario di sveglia ideale"
+                    label={t('onboarding.wakeTime')}
                     type="time"
                     value={setup.wakeTime}
                     onChange={v => setSetup(s => ({ ...s, wakeTime: v }))}
@@ -512,7 +478,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
                 {objectives.has('diet') && (
                   <LabeledInput
-                    label="Calorie giornaliere target"
+                    label={t('onboarding.caloriesTarget')}
                     type="number"
                     value={setup.calTarget}
                     onChange={v => setSetup(s => ({ ...s, calTarget: parseInt(v) || 2000 }))}
@@ -524,7 +490,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
                 {objectives.has('exercise') && (
                   <LabeledInput
-                    label="Giorni di allenamento a settimana"
+                    label={t('onboarding.trainDays')}
                     type="number"
                     value={setup.exerciseDays}
                     onChange={v => setSetup(s => ({ ...s, exerciseDays: Math.min(7, Math.max(1, parseInt(v) || 3)) }))}
@@ -549,10 +515,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </button>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── Step 3: Ready! ──────────────────────────────────────────── */}
-          <div style={stepStyle(3)}>
+          {step === 3 && (
             <div style={{
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', gap: 28,
@@ -653,20 +619,20 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 onMouseEnter={e => { if (!completing) e.currentTarget.style.transform = 'scale(1.02)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
               >
-                {completing ? 'Caricamento…' : t('onboarding.begin')}
+                {completing ? t('onboarding.loading') : t('onboarding.begin')}
               </button>
 
               <button type="button" onClick={handleBack} style={{ ...btnGhost, width: '100%' }}>
                 {t('onboarding.back')}
               </button>
             </div>
-          </div>
+          )}
 
         </div>
 
         {/* Step dots */}
         <div style={{ padding: '20px 24px 32px', flexShrink: 0 }}>
-          <StepDots current={visibleStep} total={TOTAL_STEPS} />
+          <StepDots current={step} total={TOTAL_STEPS} />
         </div>
       </div>
     </div>

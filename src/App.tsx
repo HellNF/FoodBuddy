@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { api } from './api';
 import { SettingsProvider, useSettings } from './hooks/useSettings';
 import { NavigationProvider, useNavigate } from './hooks/useNavigate';
 import { ToastProvider, useToast } from './components/Toast';
 import { useUndo } from './hooks/useUndo';
 import { useT } from './i18n/useT';
+import { useAchievementToast } from './hooks/useAchievementToast';
 
 // Pages
 import DashboardPage    from './pages/DashboardPage';
@@ -40,6 +41,7 @@ function AppInner() {
   const { page, param, navigate } = useNavigate();
   const { showToast } = useToast();
   const { t } = useT();
+  const showAchievements = useAchievementToast();
 
   useUndo(showToast, t('undo.undone'));
 
@@ -48,11 +50,13 @@ function AppInner() {
     document.body.classList.toggle('light', settings.theme === 'light');
   }, [settings.theme]);
 
-  const handleOnboardingComplete = async () => {
+  const handleOnboardingComplete = useCallback(async () => {
     await window.electronAPI.invoke('settings:save', { onboarding_complete: 1 });
-    await api.gamification.addPoints({ module: 'onboarding', reason: 'welcome', points: 0 }).catch(() => {});
+    await api.gamification.addPoints({ module: 'onboarding', reason: 'welcome', points: 0 })
+      .then(r => { if (r?.new_achievements?.length) showAchievements(r.new_achievements); })
+      .catch(() => {});
     window.location.reload();
-  };
+  }, [showAchievements]);
 
   // Listen for main process shortcut:quickAdd
   useEffect(() => {
