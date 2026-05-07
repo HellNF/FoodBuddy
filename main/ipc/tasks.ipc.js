@@ -62,8 +62,8 @@ function registerTasksIpc() {
     db.prepare(
       'UPDATE tasks SET title = ?, priority = ?, estimate_min = ?, project = ? WHERE id = ?'
     ).run(
-      title ?? row.title,
-      priority ?? row.priority,
+      title !== undefined ? title : row.title,
+      priority !== undefined ? priority : row.priority,
       estimate_min !== undefined ? estimate_min : row.estimate_min,
       project !== undefined ? project : row.project,
       id

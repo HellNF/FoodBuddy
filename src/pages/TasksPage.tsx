@@ -80,8 +80,8 @@ export default function TasksPage() {
   const [editTitle, setEditTitle] = useState('');
   const [filterDone, setFilterDone] = useState<'all' | 'open' | 'done'>('all');
 
-  const dragItemRef = useRef<number | null>(null);
-  const dragOverRef = useRef<number | null>(null);
+  const dragTaskIdRef = useRef<number | null>(null);
+  const dragOverTaskIdRef = useRef<number | null>(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -155,23 +155,22 @@ export default function TasksPage() {
 
   // ── Drag to reorder ──────────────────────────────────────────────────────
 
-  function onDragStart(idx: number) { dragItemRef.current = idx; }
-  function onDragEnter(idx: number) { dragOverRef.current = idx; }
+  function onDragStart(taskId: number) { dragTaskIdRef.current = taskId; }
+  function onDragEnter(taskId: number) { dragOverTaskIdRef.current = taskId; }
 
   async function onDragEnd() {
-    const from = dragItemRef.current;
-    const to = dragOverRef.current;
-    if (from === null || to === null || from === to) {
-      dragItemRef.current = null;
-      dragOverRef.current = null;
-      return;
-    }
+    const fromId = dragTaskIdRef.current;
+    const toId = dragOverTaskIdRef.current;
+    dragTaskIdRef.current = null;
+    dragOverTaskIdRef.current = null;
+    if (fromId === null || toId === null || fromId === toId) return;
+    const from = tasks.findIndex(t => t.id === fromId);
+    const to = tasks.findIndex(t => t.id === toId);
+    if (from === -1 || to === -1) return;
     const reordered = [...tasks];
     const [moved] = reordered.splice(from, 1);
     reordered.splice(to, 0, moved);
     setTasks(reordered);
-    dragItemRef.current = null;
-    dragOverRef.current = null;
     try {
       await api.tasks.reorder(reordered.map(t => t.id));
     } catch { await loadTasks(); }
@@ -293,12 +292,12 @@ export default function TasksPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {visibleTasks.map((task, idx) => (
+            {visibleTasks.map((task) => (
               <div
                 key={task.id}
                 draggable
-                onDragStart={() => onDragStart(idx)}
-                onDragEnter={() => onDragEnter(idx)}
+                onDragStart={() => onDragStart(task.id)}
+                onDragEnter={() => onDragEnter(task.id)}
                 onDragEnd={onDragEnd}
                 onDragOver={e => e.preventDefault()}
                 style={{

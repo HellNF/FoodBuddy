@@ -664,6 +664,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'tasks.empty':         'No tasks for today',
     'tasks.rollover':      'Rollover from yesterday',
     'tasks.completion':    'completed',
+    'tasks.seeAll':        'See all',
   },
 
   it: {
@@ -1326,5 +1327,6 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'tasks.empty':         'Nessun task per oggi',
     'tasks.rollover':      'Rollover da ieri',
     'tasks.completion':    'completati',
+    'tasks.seeAll':        'Vedi tutti',
   },
 };

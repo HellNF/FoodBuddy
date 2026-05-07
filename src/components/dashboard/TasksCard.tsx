@@ -142,7 +142,7 @@ export default function TasksCard() {
             flexShrink: 0,
           }}
         >
-          Vedi tutti
+          {t('tasks.seeAll')}
         </button>
       </div>
     </div>
