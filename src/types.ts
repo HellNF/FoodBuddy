@@ -572,7 +572,8 @@ export type PageName =
   | 'data'
   | 'notifications'
   | 'settings'
-  | 'sleep';
+  | 'sleep'
+  | 'tasks';
 
 export type NotificationType =
   | 'pantry_expiry'
@@ -597,6 +598,25 @@ export interface DismissedNotification {
   key: string;
   dismissed_at: string;
   expires_at: string | null;
+}
+
+export interface Task {
+  id: number;
+  date: string;
+  title: string;
+  done: number; // 0 or 1
+  priority: number; // 0=low 1=medium 2=high
+  estimate_min: number | null;
+  project: string | null;
+  order_idx: number;
+  created_at: string;
+  done_at: string | null;
+}
+
+export interface TaskCompletionRate {
+  total: number;
+  done: number;
+  rate: number; // 0-1
 }
 
 export interface NavParam {

@@ -12,6 +12,7 @@ import type {
   DeductionEvent,
   AppNotification, DismissedNotification,
   SleepEntry, SleepTrendPoint,
+  Task, TaskCompletionRate,
 } from './types';
 
 // Re-export for consumers that need it
@@ -289,6 +290,17 @@ export const api = {
     upsert: (data: Omit<Partial<SleepEntry>, 'factors'> & { date: string; factors?: string[] }) => invoke<{ ok: boolean }>('sleep:upsert', data),
     range:  (from: string, to: string) => invoke<SleepTrendPoint[]>('sleep:range', { from, to }),
     delete: (date: string) => invoke<{ ok: boolean }>('sleep:delete', { date }),
+  },
+
+  tasks: {
+    get:                  (date: string) => invoke<Task[]>('tasks:get', { date }),
+    add:                  (data: { date: string; title: string; priority?: number; estimate_min?: number; project?: string }) => invoke<{ id: number }>('tasks:add', data),
+    toggle:               (id: number) => invoke<{ ok: boolean; done: number }>('tasks:toggle', { id }),
+    update:               (data: { id: number; title?: string; priority?: number; estimate_min?: number; project?: string }) => invoke<{ ok: boolean }>('tasks:update', data),
+    reorder:              (ids: number[]) => invoke<{ ok: boolean }>('tasks:reorder', { ids }),
+    delete:               (id: number) => invoke<{ ok: boolean }>('tasks:delete', { id }),
+    rolloverFromYesterday:(date: string) => invoke<{ count: number }>('tasks:rolloverFromYesterday', { date }),
+    completionRate:       (date: string) => invoke<TaskCompletionRate>('tasks:completionRate', { date }),
   },
 
   notifications: {

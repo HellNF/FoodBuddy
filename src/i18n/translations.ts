@@ -656,6 +656,14 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'sleep.avgQuality':    'Avg quality',
     'sleep.deleted':       'Entry deleted',
     'sleep.logSleep':      'Log sleep',
+
+    'nav.tasks':           'Tasks',
+    'tasks.eyebrow':       'TASKS',
+    'tasks.title':         "Today's tasks",
+    'tasks.addPlaceholder':'Add a task...',
+    'tasks.empty':         'No tasks for today',
+    'tasks.rollover':      'Rollover from yesterday',
+    'tasks.completion':    'completed',
   },
 
   it: {
@@ -1310,5 +1318,13 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'sleep.avgQuality':    'Qualità media',
     'sleep.deleted':       'Voce eliminata',
     'sleep.logSleep':      'Logga sonno',
+
+    'nav.tasks':           'Task',
+    'tasks.eyebrow':       'TASK',
+    'tasks.title':         'I tuoi task di oggi',
+    'tasks.addPlaceholder':'Aggiungi un task...',
+    'tasks.empty':         'Nessun task per oggi',
+    'tasks.rollover':      'Rollover da ieri',
+    'tasks.completion':    'completati',
   },
 };

@@ -70,6 +70,28 @@ function registerUndoIpc() {
                data.row.quality, data.row.factors, data.row.note, data.row.created_at);
         return { action, description: 'sleep entry' };
 
+      case 'tasks:toggle':
+        db.prepare('UPDATE tasks SET done = ?, done_at = ? WHERE id = ?').run(
+          data.old_done, data.old_done_at, data.id
+        );
+        return { action, description: 'task toggle' };
+
+      case 'tasks:update':
+        db.prepare(
+          'UPDATE tasks SET title = ?, priority = ?, estimate_min = ?, project = ? WHERE id = ?'
+        ).run(data.old_title, data.old_priority, data.old_estimate_min, data.old_project, data.id);
+        return { action, description: 'task update' };
+
+      case 'tasks:delete':
+        db.prepare(
+          'INSERT INTO tasks (id, date, title, done, priority, estimate_min, project, order_idx, created_at, done_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run(
+          data.row.id, data.row.date, data.row.title, data.row.done,
+          data.row.priority, data.row.estimate_min, data.row.project,
+          data.row.order_idx, data.row.created_at, data.row.done_at
+        );
+        return { action, description: 'task delete' };
+
       default:
         return null;
     }

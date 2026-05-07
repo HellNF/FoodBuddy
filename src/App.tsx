@@ -23,6 +23,7 @@ import SettingsPage     from './pages/SettingsPage';
 import ComparePage      from './pages/ComparePage';
 import NotificationsPage from './pages/NotificationsPage';
 import SleepPage from './pages/SleepPage';
+import TasksPage from './pages/TasksPage';
 
 import Nav from './components/Nav';
 
@@ -71,6 +72,7 @@ function AppInner() {
         {page === 'notifications' && <NotificationsPage />}
         {page === 'settings'     && <SettingsPage />}
         {page === 'sleep'        && <SleepPage />}
+        {page === 'tasks'        && <TasksPage />}
       </main>
     </div>
   );
