@@ -574,7 +574,8 @@ export type PageName =
   | 'settings'
   | 'sleep'
   | 'tasks'
-  | 'habits';
+  | 'habits'
+  | 'focus';
 
 export type NotificationType =
   | 'pantry_expiry'
@@ -648,4 +649,32 @@ export interface HabitLog {
 export interface HabitWeekStat {
   habit_id: number;
   checks: { date: string; done: boolean }[];
+}
+
+// ── Focus / Pomodoro ──────────────────────────────────────────────────────────
+
+export interface FocusSession {
+  id: number;
+  date: string;
+  started_at: string;
+  ended_at: string | null;
+  duration_min: number;
+  type: 'pomodoro' | 'manual';
+  project: string | null;
+  note: string | null;
+  completed: number; // 0 or 1
+  created_at: string;
+}
+
+export interface FocusDayStats {
+  sessions: FocusSession[];
+  total_min: number;
+  total_sessions: number;
+  completed_sessions: number;
+}
+
+export interface FocusWeekPoint {
+  date: string;
+  total_min: number;
+  sessions: number;
 }

@@ -31,6 +31,7 @@ const registerWorkoutScheduleIpc = require('./ipc/workout_schedule.ipc');
 const registerSleepIpc           = require('./ipc/sleep.ipc');
 const registerTasksIpc           = require('./ipc/tasks.ipc');
 const registerHabitsIpc          = require('./ipc/habits.ipc');
+const registerFocusIpc           = require('./ipc/focus.ipc');
 
 let mainWindow;
 
@@ -119,6 +120,7 @@ app.whenReady().then(async () => {
   registerSleepIpc();
   registerTasksIpc();
   registerHabitsIpc();
+  registerFocusIpc();
 
   createWindow();
 

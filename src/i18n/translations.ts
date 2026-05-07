@@ -686,6 +686,17 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.deleteConfirm':'Delete this habit and all its history?',
     'habits.last90Days':  'Last 90 days',
     'habits.thisWeek':    'This week',
+
+    'nav.focus':          'Focus',
+    'focus.eyebrow':      'FOCUS',
+    'focus.title':        'Focus sessions',
+    'focus.start':        'Start',
+    'focus.pause':        'Pause',
+    'focus.resume':       'Resume',
+    'focus.stop':         'Stop',
+    'focus.addManual':    'Add manually',
+    'focus.completed':    'Session complete!',
+    'focus.totalMin':     'focus minutes today',
   },
 
   it: {
@@ -1370,5 +1381,16 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.deleteConfirm':'Eliminare questa abitudine e tutta la cronologia?',
     'habits.last90Days':  'Ultimi 90 giorni',
     'habits.thisWeek':    'Questa settimana',
+
+    'nav.focus':          'Focus',
+    'focus.eyebrow':      'FOCUS',
+    'focus.title':        'Sessioni di focus',
+    'focus.start':        'Inizia',
+    'focus.pause':        'Pausa',
+    'focus.resume':       'Riprendi',
+    'focus.stop':         'Ferma',
+    'focus.addManual':    'Aggiungi manualmente',
+    'focus.completed':    'Sessione completata!',
+    'focus.totalMin':     'minuti di focus oggi',
   },
 };

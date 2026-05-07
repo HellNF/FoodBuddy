@@ -14,6 +14,7 @@ import type {
   SleepEntry, SleepTrendPoint,
   Task, TaskCompletionRate,
   Habit, HabitWeekStat,
+  FocusSession, FocusDayStats, FocusWeekPoint,
 } from './types';
 
 // Re-export for consumers that need it
@@ -315,6 +316,23 @@ export const api = {
     getWeekStats:     (date: string) => invoke<HabitWeekStat[]>('habits:getWeekStats', { date }),
     getCurrentStreak: (habit_id: number) => invoke<{ streak: number }>('habits:getCurrentStreak', { habit_id }),
     getMonthData:     (habit_id: number, year: number, month: number) => invoke<{ dates: string[] }>('habits:getMonthData', { habit_id, year, month }),
+  },
+
+  focus: {
+    startSession: (data: { type?: string; project?: string; note?: string }) =>
+      invoke<{ id: number; started_at: string }>('focus:startSession', data),
+    stopSession: (id: number, duration_min: number) =>
+      invoke<FocusSession>('focus:stopSession', { id, duration_min }),
+    logManual: (data: { date: string; duration_min: number; project?: string; note?: string }) =>
+      invoke<{ id: number }>('focus:logManual', data),
+    deleteSession: (id: number) =>
+      invoke<{ ok: boolean }>('focus:deleteSession', { id }),
+    getDayStats: (date: string) =>
+      invoke<FocusDayStats>('focus:getDayStats', { date }),
+    getWeekStats: (from: string, to: string) =>
+      invoke<FocusWeekPoint[]>('focus:getWeekStats', { from, to }),
+    getActiveSession: () =>
+      invoke<FocusSession | null>('focus:getActiveSession'),
   },
 
   notifications: {

@@ -115,6 +115,21 @@ function registerUndoIpc() {
         }
         return { action, description: 'habit delete' };
 
+      case 'focus:logManual':
+        db.prepare('DELETE FROM focus_sessions WHERE id = ?').run(data.id);
+        return { action, description: 'focus manual log' };
+
+      case 'focus:deleteSession':
+        db.prepare(`
+          INSERT INTO focus_sessions (id, date, started_at, ended_at, duration_min, type, project, note, completed, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          data.row.id, data.row.date, data.row.started_at, data.row.ended_at,
+          data.row.duration_min, data.row.type, data.row.project, data.row.note,
+          data.row.completed, data.row.created_at
+        );
+        return { action, description: 'focus session delete' };
+
       default:
         return null;
     }
