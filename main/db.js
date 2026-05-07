@@ -644,6 +644,101 @@ function initDb() {
   ]) {
     insertEquip.run(name);
   }
+
+  // Lifestyle module tables (sleep, focus, tasks, habits, mood, workouts)
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS sleep_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT UNIQUE NOT NULL,
+        bedtime TEXT,
+        wake_time TEXT,
+        duration_min INTEGER,
+        quality INTEGER,
+        factors TEXT,
+        note TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS focus_session (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        duration_min INTEGER NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'pomodoro',
+        project TEXT,
+        note TEXT,
+        completed INTEGER DEFAULT 1
+      );
+
+      CREATE TABLE IF NOT EXISTS task (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        title TEXT NOT NULL,
+        done INTEGER DEFAULT 0,
+        priority INTEGER DEFAULT 0,
+        estimate_min INTEGER,
+        project TEXT,
+        order_idx INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now')),
+        done_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS habit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        icon TEXT DEFAULT '✓',
+        color TEXT DEFAULT '#d97706',
+        target_per_week INTEGER DEFAULT 7,
+        archived INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS habit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        habit_id INTEGER NOT NULL REFERENCES habit(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        value INTEGER DEFAULT 1,
+        UNIQUE(habit_id, date)
+      );
+
+      CREATE TABLE IF NOT EXISTS mood_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT UNIQUE NOT NULL,
+        mood INTEGER,
+        energy INTEGER,
+        stress INTEGER,
+        note TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS workout_session (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        plan_id INTEGER,
+        started_at TEXT,
+        ended_at TEXT,
+        duration_min INTEGER,
+        calories_burned INTEGER,
+        perceived_effort INTEGER,
+        note TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS exercise_set (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL REFERENCES workout_session(id) ON DELETE CASCADE,
+        exercise_id INTEGER,
+        set_idx INTEGER DEFAULT 0,
+        reps INTEGER,
+        weight_kg REAL,
+        distance_km REAL,
+        duration_sec INTEGER,
+        rest_sec INTEGER
+      );
+    `);
+  } catch (_) {}
 }
 
 module.exports = { getDb, getDbPath, closeDb, initDb };
