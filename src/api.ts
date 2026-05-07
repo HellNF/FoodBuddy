@@ -16,6 +16,7 @@ import type {
   Habit, HabitWeekStat,
   FocusSession, FocusDayStats, FocusWeekPoint,
   MoodEntry, MoodTrendPoint,
+  WorkoutSession, WorkoutExerciseSet, WorkoutWeekPoint,
 } from './types';
 
 // Re-export for consumers that need it
@@ -342,6 +343,21 @@ export const api = {
               invoke<MoodEntry>('mood:upsert', data),
     range:  (from: string, to: string) => invoke<MoodTrendPoint[]>('mood:range', { from, to }),
     delete: (date: string) => invoke<{ ok: boolean }>('mood:delete', { date }),
+  },
+
+  workouts: {
+    startSession:    (data: { date?: string; plan_id?: number | null; note?: string }) =>
+                       invoke<{ id: number; started_at: string }>('workouts:startSession', data),
+    endSession:      (data: { id: number; duration_min?: number | null; calories_burned?: number | null; perceived_effort?: number | null; note?: string | null }) =>
+                       invoke<WorkoutSession>('workouts:endSession', data),
+    addSet:          (data: { session_id: number; exercise_id?: number | null; set_idx?: number; reps?: number | null; weight_kg?: number | null; distance_km?: number | null; duration_sec?: number | null; rest_sec?: number | null }) =>
+                       invoke<{ id: number }>('workouts:addSet', data),
+    removeSet:       (id: number) => invoke<{ ok: boolean }>('workouts:removeSet', { id }),
+    getSession:      (id: number) => invoke<WorkoutSession | null>('workouts:getSession', { id }),
+    getDaySessions:  (date: string) => invoke<WorkoutSession[]>('workouts:getDaySessions', { date }),
+    getActiveSession:() => invoke<WorkoutSession | null>('workouts:getActiveSession'),
+    getWeekStats:    (from: string, to: string) => invoke<WorkoutWeekPoint[]>('workouts:getWeekStats', { from, to }),
+    deleteSession:   (id: number) => invoke<{ ok: boolean }>('workouts:deleteSession', { id }),
   },
 
   notifications: {

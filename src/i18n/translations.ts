@@ -713,6 +713,18 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'journal.empty':        'No data',
     'journal.update':       'Update',
     'journal.trend14':      'TREND · 14 DAYS',
+
+    'workouts.eyebrow':      'WORKOUT',
+    'workouts.sessions':     'Sessions',
+    'workouts.startSession': 'Start session',
+    'workouts.endSession':   'End session',
+    'workouts.duration':     'Duration',
+    'workouts.caloriesBurned':'Calories burned',
+    'workouts.effort':       'Perceived effort',
+    'workouts.noSessionToday':'No workout today',
+    'workouts.addSet':       'Add set',
+    'workouts.start':        'Start',
+    'exercise.tabSessions':  'Sessions',
   },
 
   it: {
@@ -1424,5 +1436,17 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'journal.empty':        'Nessun dato',
     'journal.update':       'Aggiorna',
     'journal.trend14':      'TREND · 14 GIORNI',
+
+    'workouts.eyebrow':      'ALLENAMENTO',
+    'workouts.sessions':     'Sessioni',
+    'workouts.startSession': 'Inizia sessione',
+    'workouts.endSession':   'Termina sessione',
+    'workouts.duration':     'Durata',
+    'workouts.caloriesBurned':'Calorie bruciate',
+    'workouts.effort':       'Sforzo percepito',
+    'workouts.noSessionToday':'Nessun allenamento oggi',
+    'workouts.addSet':       'Aggiungi set',
+    'workouts.start':        'Inizia',
+    'exercise.tabSessions':  'Sessioni',
   },
 };

@@ -4,11 +4,13 @@ import ExerciseLibrary from '../components/ExerciseLibrary';
 import ExerciseEquipment from '../components/ExerciseEquipment';
 import WorkoutPlans from '../components/WorkoutPlans';
 import ExerciseWeekView from '../components/ExerciseWeekView';
+import WorkoutSessions from '../components/WorkoutSessions';
 import { useT } from '../i18n/useT';
 
-type ExerciseTab = 'log' | 'library' | 'plans' | 'week' | 'equipment';
+type ExerciseTab = 'log' | 'library' | 'plans' | 'week' | 'equipment' | 'sessions';
 
 const TABS: { id: ExerciseTab; key: string }[] = [
+  { id: 'sessions',  key: 'exercise.tabSessions' },
   { id: 'log',       key: 'exercise.tabLog' },
   { id: 'library',   key: 'exercise.tabLibrary' },
   { id: 'plans',     key: 'exercise.tabPlans' },
@@ -18,7 +20,7 @@ const TABS: { id: ExerciseTab; key: string }[] = [
 
 export default function ExercisePage() {
   const { t } = useT();
-  const [tab, setTab] = useState<ExerciseTab>('log');
+  const [tab, setTab] = useState<ExerciseTab>('sessions');
 
   return (
     <div className="p-6 max-w-6xl mx-auto flex flex-col gap-0 h-full min-h-0">
@@ -42,6 +44,7 @@ export default function ExercisePage() {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
+        {tab === 'sessions'  && <WorkoutSessions />}
         {tab === 'log'       && <ExerciseLog />}
         {tab === 'library'   && <ExerciseLibrary />}
         {tab === 'plans'     && <WorkoutPlans />}

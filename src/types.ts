@@ -698,3 +698,38 @@ export interface FocusWeekPoint {
   total_min: number;
   sessions: number;
 }
+
+// ── Workout sessions ──────────────────────────────────────────────────────────
+
+export interface WorkoutSession {
+  id: number;
+  date: string;
+  plan_id: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_min: number | null;
+  calories_burned: number | null;
+  perceived_effort: number | null; // 1-10
+  note: string | null;
+  created_at: string;
+  sets?: WorkoutExerciseSet[];
+}
+
+export interface WorkoutExerciseSet {
+  id: number;
+  session_id: number;
+  exercise_id: number | null;
+  set_idx: number;
+  reps: number | null;
+  weight_kg: number | null;
+  distance_km: number | null;
+  duration_sec: number | null;
+  rest_sec: number | null;
+}
+
+export interface WorkoutWeekPoint {
+  date: string;
+  duration_min: number;
+  calories_burned: number;
+  sessions: number;
+}

@@ -150,6 +150,59 @@ function registerUndoIpc() {
                data.row.note, data.row.created_at);
         return { action, description: 'mood entry' };
 
+      case 'workouts:endSession':
+        db.prepare(`
+          UPDATE workout_sessions
+          SET ended_at = ?, duration_min = ?, calories_burned = ?, perceived_effort = ?, note = ?
+          WHERE id = ?
+        `).run(
+          data.old_ended_at, data.old_duration_min, data.old_calories_burned,
+          data.old_perceived_effort, data.old_note, data.id
+        );
+        // Revert daily_energy active_kcal if we had previously set it
+        if (data.old_calories_burned == null) {
+          // Nothing to revert for energy — we can't know prior value cleanly; leave as-is
+        }
+        return { action, description: 'workout session end' };
+
+      case 'workouts:deleteSession':
+        db.prepare(`
+          INSERT INTO workout_sessions
+            (id, date, plan_id, started_at, ended_at, duration_min, calories_burned, perceived_effort, note, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          data.row.id, data.row.date, data.row.plan_id,
+          data.row.started_at, data.row.ended_at,
+          data.row.duration_min, data.row.calories_burned,
+          data.row.perceived_effort, data.row.note, data.row.created_at
+        );
+        if (data.sets && data.sets.length) {
+          const insertSet = db.prepare(`
+            INSERT INTO workout_exercise_sets
+              (id, session_id, exercise_id, set_idx, reps, weight_kg, distance_km, duration_sec, rest_sec)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          for (const s of data.sets) {
+            insertSet.run(
+              s.id, s.session_id, s.exercise_id, s.set_idx,
+              s.reps, s.weight_kg, s.distance_km, s.duration_sec, s.rest_sec
+            );
+          }
+        }
+        return { action, description: 'workout session delete' };
+
+      case 'workouts:removeSet':
+        db.prepare(`
+          INSERT INTO workout_exercise_sets
+            (id, session_id, exercise_id, set_idx, reps, weight_kg, distance_km, duration_sec, rest_sec)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          data.row.id, data.row.session_id, data.row.exercise_id, data.row.set_idx,
+          data.row.reps, data.row.weight_kg, data.row.distance_km,
+          data.row.duration_sec, data.row.rest_sec
+        );
+        return { action, description: 'workout set remove' };
+
       default:
         return null;
     }
