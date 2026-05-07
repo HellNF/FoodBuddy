@@ -25,6 +25,13 @@ import SupplementsWidget from '../components/dashboard/SupplementsWidget';
 import PantryWidget from '../components/dashboard/PantryWidget';
 import WeightWidget from '../components/dashboard/WeightWidget';
 import CollapsibleSection from '../components/dashboard/CollapsibleSection';
+import GamificationCard from '../components/dashboard/GamificationCard';
+import SleepCard from '../components/dashboard/SleepCard';
+import TasksCard from '../components/dashboard/TasksCard';
+import HabitsCard from '../components/dashboard/HabitsCard';
+import FocusCard from '../components/dashboard/FocusCard';
+import MoodCard from '../components/dashboard/MoodCard';
+import WorkoutCard from '../components/dashboard/WorkoutCard';
 import DeductionEventModal from '../components/DeductionEventModal';
 import {
   MEAL_ORDER,
@@ -624,6 +631,25 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             <SupplementsWidget supplements={supplements} onTake={handleTakeSuppl} />
             <PantryWidget enabled={settings.pantry_enabled !== 0} lowItems={pantryLow} />
             <WeightWidget weightKg={weightKg} weightTrend={weightTrend} />
+          </section>
+
+          {/* ── GAMIFICATION ────────────────────────────────────────────── */}
+          <section>
+            <GamificationCard />
+          </section>
+
+          {/* ── LIFESTYLE ROW 1: Sleep · Focus · Tasks ───────────────────── */}
+          <section className="dash-secondary-grid">
+            <SleepCard />
+            <FocusCard />
+            <TasksCard />
+          </section>
+
+          {/* ── LIFESTYLE ROW 2: Habits · Mood · Workout ─────────────────── */}
+          <section className="dash-secondary-grid">
+            <HabitsCard />
+            <MoodCard />
+            <WorkoutCard />
           </section>
 
           {/* ── COLLAPSIBLES ────────────────────────────────────────────── */}
