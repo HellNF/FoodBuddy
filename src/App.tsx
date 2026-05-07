@@ -22,6 +22,7 @@ import DataPage         from './pages/DataPage';
 import SettingsPage     from './pages/SettingsPage';
 import ComparePage      from './pages/ComparePage';
 import NotificationsPage from './pages/NotificationsPage';
+import SleepPage from './pages/SleepPage';
 
 import Nav from './components/Nav';
 
@@ -69,6 +70,7 @@ function AppInner() {
         {page === 'data'         && <DataPage />}
         {page === 'notifications' && <NotificationsPage />}
         {page === 'settings'     && <SettingsPage />}
+        {page === 'sleep'        && <SleepPage />}
       </main>
     </div>
   );

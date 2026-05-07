@@ -307,6 +307,24 @@ export interface Scale {
   is_default: number; // 0 or 1
 }
 
+export interface SleepEntry {
+  id: number;
+  date: string;
+  bedtime: string | null;
+  wake_time: string | null;
+  duration_min: number | null;
+  quality: number | null;
+  factors: string | null; // JSON string array
+  note: string | null;
+  created_at: string;
+}
+
+export interface SleepTrendPoint {
+  date: string;
+  duration_min: number | null;
+  quality: number | null;
+}
+
 export interface WaterEntry {
   id: number;
   date: string;
@@ -553,7 +571,8 @@ export type PageName =
   | 'goals'
   | 'data'
   | 'notifications'
-  | 'settings';
+  | 'settings'
+  | 'sleep';
 
 export type NotificationType =
   | 'pantry_expiry'

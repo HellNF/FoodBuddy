@@ -11,6 +11,7 @@ import type {
   GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
   DeductionEvent,
   AppNotification, DismissedNotification,
+  SleepEntry, SleepTrendPoint,
 } from './types';
 
 // Re-export for consumers that need it
@@ -281,6 +282,13 @@ export const api = {
     getRange:       (startDate: string, endDate: string) => invoke<DailyEnergy[]>('dailyEnergy:getRange', { startDate, endDate }),
     getPrevResting: (date: string) => invoke<{ resting_kcal: number }>('dailyEnergy:getPrevResting', { date }),
     set:            (data: DailyEnergy) => invoke<{ ok: boolean }>('dailyEnergy:set', data),
+  },
+
+  sleep: {
+    get:    (date: string) => invoke<SleepEntry | null>('sleep:get', { date }),
+    upsert: (data: Partial<SleepEntry> & { date: string }) => invoke<{ ok: boolean }>('sleep:upsert', data),
+    range:  (from: string, to: string) => invoke<SleepTrendPoint[]>('sleep:range', { from, to }),
+    delete: (date: string) => invoke<{ ok: boolean }>('sleep:delete', { date }),
   },
 
   notifications: {

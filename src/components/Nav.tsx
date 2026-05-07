@@ -36,6 +36,7 @@ const ICONS: Record<PageName, string> = {
   settings:     'M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z',
   notifications: 'M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 003.4 0',
   day:          'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
+  sleep:        'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
 };
 
 // ── Nav item definitions ───────────────────────────────────────────────────────
@@ -56,16 +57,18 @@ const DEFAULT_ORDER: NavItem[] = [
   { page: 'measurements',  labelKey: 'nav.measurements',  group: 'health' },
   { page: 'weight',        labelKey: 'nav.body',          group: 'health' },
   { page: 'goals',         labelKey: 'nav.goals',         group: 'health' },
+  { page: 'sleep',         labelKey: 'nav.sleep',         group: 'lifestyle' },
   { page: 'notifications', labelKey: 'nav.notifications', group: 'system' },
   { page: 'data',          labelKey: 'nav.data',          group: 'system' },
   { page: 'settings',      labelKey: 'nav.settings',      group: 'system' },
 ];
 
 const GROUPS = [
-  { id: 'track',  label: 'Diario' },
-  { id: 'plan',   label: 'Pianificazione' },
-  { id: 'health', label: 'Salute' },
-  { id: 'system', label: 'Sistema' },
+  { id: 'track',     label: 'Diario' },
+  { id: 'plan',      label: 'Pianificazione' },
+  { id: 'health',    label: 'Salute' },
+  { id: 'lifestyle', label: 'Lifestyle' },
+  { id: 'system',    label: 'Sistema' },
 ];
 
 const STORAGE_KEY = 'nav_order';
