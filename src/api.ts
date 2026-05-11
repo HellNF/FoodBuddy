@@ -20,6 +20,7 @@ import type {
   Achievement, UserLevel, PointEvent,
   SectionStreak,
   InsightsResult, DayReliabilityLevel,
+  HabitStats, TasksStats, FocusStats, WorkoutStats, MoodStats, SleepStats,
 } from './types';
 
 // Re-export for consumers that need it
@@ -296,7 +297,8 @@ export const api = {
     get:    (date: string) => invoke<SleepEntry | null>('sleep:get', { date }),
     upsert: (data: Omit<Partial<SleepEntry>, 'factors'> & { date: string; factors?: string[] }) => invoke<{ ok: boolean }>('sleep:upsert', data),
     range:  (from: string, to: string) => invoke<SleepTrendPoint[]>('sleep:range', { from, to }),
-    delete: (date: string) => invoke<{ ok: boolean }>('sleep:delete', { date }),
+    delete:   (date: string) => invoke<{ ok: boolean }>('sleep:delete', { date }),
+    getStats: (from: string, to: string) => invoke<SleepStats>('sleep:getStats', { from, to }),
   },
 
   tasks: {
@@ -308,6 +310,7 @@ export const api = {
     delete:               (id: number) => invoke<{ ok: boolean }>('tasks:delete', { id }),
     rolloverFromYesterday:(date: string) => invoke<{ count: number }>('tasks:rolloverFromYesterday', { date }),
     completionRate:       (date: string) => invoke<TaskCompletionRate>('tasks:completionRate', { date }),
+    getStats:             (from: string, to: string) => invoke<TasksStats>('tasks:getStats', { from, to }),
   },
 
   habits: {
@@ -321,6 +324,7 @@ export const api = {
     getWeekStats:     (date: string) => invoke<HabitWeekStat[]>('habits:getWeekStats', { date }),
     getCurrentStreak: (habit_id: number) => invoke<{ streak: number }>('habits:getCurrentStreak', { habit_id }),
     getMonthData:     (habit_id: number, year: number, month: number) => invoke<{ dates: string[] }>('habits:getMonthData', { habit_id, year, month }),
+    getStats:         (habit_id: number) => invoke<HabitStats>('habits:getStats', { habit_id }),
   },
 
   focus: {
@@ -338,6 +342,7 @@ export const api = {
       invoke<FocusWeekPoint[]>('focus:getWeekStats', { from, to }),
     getActiveSession: () =>
       invoke<FocusSession | null>('focus:getActiveSession'),
+    getStats: (from: string, to: string) => invoke<FocusStats>('focus:getStats', { from, to }),
   },
 
   mood: {
@@ -345,7 +350,8 @@ export const api = {
     upsert: (data: { date: string; mood?: number; energy?: number; stress?: number; note?: string }) =>
               invoke<MoodEntry>('mood:upsert', data),
     range:  (from: string, to: string) => invoke<MoodTrendPoint[]>('mood:range', { from, to }),
-    delete: (date: string) => invoke<{ ok: boolean }>('mood:delete', { date }),
+    delete:   (date: string) => invoke<{ ok: boolean }>('mood:delete', { date }),
+    getStats: (from: string, to: string) => invoke<MoodStats>('mood:getStats', { from, to }),
   },
 
   workouts: {
@@ -361,6 +367,7 @@ export const api = {
     getActiveSession:() => invoke<WorkoutSession | null>('workouts:getActiveSession'),
     getWeekStats:    (from: string, to: string) => invoke<WorkoutWeekPoint[]>('workouts:getWeekStats', { from, to }),
     deleteSession:   (id: number) => invoke<{ ok: boolean }>('workouts:deleteSession', { id }),
+    getStats:        (from: string, to: string) => invoke<WorkoutStats>('workouts:getStats', { from, to }),
   },
 
   notifications: {

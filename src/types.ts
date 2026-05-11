@@ -819,3 +819,87 @@ export interface DataQuality {
   tierUnlocked: 0 | 1 | 2 | 3;
 }
 export interface InsightsResult { insights: Insight[]; dataQuality: DataQuality; }
+
+// ── Lifestyle stats types ────────────────────────────────────────────────────
+
+export interface HabitStats {
+  current_streak: number;
+  longest_streak: number;
+  completion_rate_30d: number;
+  checks_30d: string[];
+  target_per_week: number;
+  checks_this_week: number;
+  checks_prev_week: number;
+  on_track: boolean;
+}
+
+export interface TasksStats {
+  days: Array<{ date: string; total: number; done: number; rate: number }>;
+  current_streak: number;
+  best_streak: number;
+  week_total: number;
+  week_done: number;
+  last_week_total: number;
+  last_week_done: number;
+  avg_completion_rate: number;
+}
+
+export interface FocusStats {
+  days: Array<{ date: string; total_min: number; sessions: number }>;
+  current_streak: number;
+  best_streak: number;
+  week_min: number;
+  last_week_min: number;
+  total_min_30d: number;
+  avg_min_per_active_day: number;
+  by_project: Array<{ project: string; total_min: number; sessions: number }>;
+}
+
+export interface WorkoutStats {
+  days: Array<{ date: string; duration_min: number; calories_burned: number; sessions: number }>;
+  current_streak: number;
+  best_streak: number;
+  week_sessions: number;
+  last_week_sessions: number;
+  week_min: number;
+  last_week_min: number;
+  total_min_30d: number;
+  sessions_30d: number;
+  by_exercise: Array<{
+    exercise_id: number;
+    name: string;
+    sessions: number;
+    total_sets: number;
+    total_volume_kg: number;
+    best_weight_kg: number;
+    best_est_1rm_kg: number;
+  }>;
+}
+
+export interface MoodStats {
+  days: Array<{ date: string; mood: number | null; energy: number | null; stress: number | null }>;
+  logged_streak: number;
+  best_logged_streak: number;
+  days_logged_30d: number;
+  avg_mood: number | null;
+  avg_energy: number | null;
+  avg_stress: number | null;
+  week_avg_mood: number | null;
+  last_week_avg_mood: number | null;
+  best_day: { date: string; mood: number } | null;
+  worst_day: { date: string; mood: number } | null;
+}
+
+export interface SleepStats {
+  days: Array<{ date: string; duration_min: number | null; quality: number | null }>;
+  logged_streak: number;
+  best_logged_streak: number;
+  days_logged_30d: number;
+  avg_duration_min: number | null;
+  avg_quality: number | null;
+  week_avg_min: number | null;
+  last_week_avg_min: number | null;
+  debt_min_7d: number;
+  factor_counts: Array<{ factor: string; count: number }>;
+  best_night: { date: string; duration_min: number } | null;
+}
