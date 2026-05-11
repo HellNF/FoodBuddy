@@ -794,6 +794,17 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'insights.module.energy':    'Activity',
     'insights.module.water':     'Hydration',
     'insights.module.other':     'Other',
+
+    'insights.settings.section':        'Insights',
+    'insights.settings.enabled':        'Enable insights',
+    'insights.settings.useNutrition':   'Use nutrition in correlations',
+    'insights.settings.useNutritionHelp': 'Turn off if you don\'t log food precisely.',
+    'insights.settings.includeApprox':  'Include rough food days',
+    'insights.settings.sleepTarget':    'Sleep target (hours)',
+    'insights.settings.minPairN':       'Minimum sample size for a correlation',
+    'insights.settings.fdrQ':           'Accepted false-discovery rate (FDR)',
+    'insights.settings.windowDays':     'Analysis window (days)',
+    'insights.settings.advanced':       'Advanced',
   },
 
   it: {
@@ -1583,5 +1594,16 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'insights.module.energy':    'Attività',
     'insights.module.water':     'Idratazione',
     'insights.module.other':     'Altro',
+
+    'insights.settings.section':        'Insight',
+    'insights.settings.enabled':        'Abilita gli insight',
+    'insights.settings.useNutrition':   'Usa l\'alimentazione nelle correlazioni',
+    'insights.settings.useNutritionHelp': 'Disattiva se non logghi il cibo con precisione.',
+    'insights.settings.includeApprox':  'Includi i giorni alimentari approssimativi',
+    'insights.settings.sleepTarget':    'Obiettivo di sonno (ore)',
+    'insights.settings.minPairN':       'Campione minimo per una correlazione',
+    'insights.settings.fdrQ':           'Tasso di falsi positivi accettato (FDR)',
+    'insights.settings.windowDays':     'Finestra di analisi (giorni)',
+    'insights.settings.advanced':       'Avanzate',
   },
 };

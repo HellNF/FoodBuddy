@@ -315,6 +315,127 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ── Insights ───────────────────────────────────────────────────────── */}
+      <section>
+        <h2 className={sectionTitle}>{t('insights.settings.section')}</h2>
+        <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+          {/* Enable toggle */}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              onClick={() => updateSettings({ insights_enabled: settings.insights_enabled === 0 ? 1 : 0 })}
+              className={[
+                'w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center',
+                settings.insights_enabled !== 0 ? 'bg-accent' : 'bg-border',
+              ].join(' ')}
+            >
+              <div className={[
+                'w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5',
+                settings.insights_enabled !== 0 ? 'translate-x-4' : 'translate-x-0',
+              ].join(' ')} />
+            </div>
+            <span className="text-sm text-text">{t('insights.settings.enabled')}</span>
+          </label>
+
+          {settings.insights_enabled !== 0 && (
+            <div className="flex flex-col gap-4 pt-1 border-t border-border/50">
+              {/* Use nutrition toggle */}
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => updateSettings({ insights_use_nutrition: settings.insights_use_nutrition === 0 ? 1 : 0 })}
+                    className={[
+                      'w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center shrink-0',
+                      settings.insights_use_nutrition !== 0 ? 'bg-accent' : 'bg-border',
+                    ].join(' ')}
+                  >
+                    <div className={[
+                      'w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5',
+                      settings.insights_use_nutrition !== 0 ? 'translate-x-4' : 'translate-x-0',
+                    ].join(' ')} />
+                  </div>
+                  <span className="text-sm text-text">{t('insights.settings.useNutrition')}</span>
+                </label>
+                <p className="text-xs text-text-sec pl-13 ml-13">{t('insights.settings.useNutritionHelp')}</p>
+              </div>
+
+              {/* Include approx days toggle */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div
+                  onClick={() => updateSettings({ insights_include_approx_days: settings.insights_include_approx_days === 0 ? 1 : 0 })}
+                  className={[
+                    'w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center shrink-0',
+                    settings.insights_include_approx_days !== 0 ? 'bg-accent' : 'bg-border',
+                  ].join(' ')}
+                >
+                  <div className={[
+                    'w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5',
+                    settings.insights_include_approx_days !== 0 ? 'translate-x-4' : 'translate-x-0',
+                  ].join(' ')} />
+                </div>
+                <span className="text-sm text-text">{t('insights.settings.includeApprox')}</span>
+              </label>
+
+              {/* Sleep target */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-text-sec">{t('insights.settings.sleepTarget')}</label>
+                <input
+                  type="number" min={4} max={12} step={0.5}
+                  value={(settings.insights_sleep_target_min ?? 480) / 60}
+                  onChange={e => {
+                    const h = parseFloat(e.target.value);
+                    if (!isNaN(h)) updateSettings({ insights_sleep_target_min: Math.round(h * 60) });
+                  }}
+                  className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
+                />
+              </div>
+
+              {/* Advanced subsection */}
+              <div className="border-t border-border/50 pt-3 flex flex-col gap-3">
+                <p className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('insights.settings.advanced')}</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-text-sec">{t('insights.settings.minPairN')}</label>
+                    <input
+                      type="number" min={10} max={60}
+                      value={settings.insights_min_pair_n ?? 21}
+                      onChange={e => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) updateSettings({ insights_min_pair_n: Math.min(60, Math.max(10, v)) });
+                      }}
+                      className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-text-sec">{t('insights.settings.fdrQ')}</label>
+                    <input
+                      type="number" min={0} max={1} step={0.01}
+                      value={settings.insights_fdr_q ?? 0.10}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value);
+                        if (!isNaN(v)) updateSettings({ insights_fdr_q: Math.min(1, Math.max(0, v)) });
+                      }}
+                      className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-text-sec">{t('insights.settings.windowDays')}</label>
+                    <input
+                      type="number" min={30} max={365}
+                      value={settings.insights_window_days ?? 90}
+                      onChange={e => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) updateSettings({ insights_window_days: Math.min(365, Math.max(30, v)) });
+                      }}
+                      className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* ── Apple Health ───────────────────────────────────────────────────── */}
       <section>
         <h2 className={sectionTitle}>Apple Health</h2>
