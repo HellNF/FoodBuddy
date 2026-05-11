@@ -699,6 +699,11 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.deleteConfirm':'Delete this habit and all its history?',
     'habits.last90Days':  'Last 90 days',
     'habits.thisWeek':    'This week',
+    'habits.weekTitle':       'THIS WEEK VS LAST',
+    'habits.checksThisWeek':  'Checks this week',
+    'habits.onTrack':         'On track',
+    'habits.avgRate30d':      'Avg rate (30d)',
+    'habits.completionRate30d': '30d completion',
 
     'nav.focus':          'Focus',
     'focus.eyebrow':      'FOCUS',
@@ -1514,6 +1519,11 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.deleteConfirm':'Eliminare questa abitudine e tutta la cronologia?',
     'habits.last90Days':  'Ultimi 90 giorni',
     'habits.thisWeek':    'Questa settimana',
+    'habits.weekTitle':       'QUESTA VS SCORSA SETTIMANA',
+    'habits.checksThisWeek':  'Check questa settimana',
+    'habits.onTrack':         'In carreggiata',
+    'habits.avgRate30d':      'Media completamento (30g)',
+    'habits.completionRate30d': 'Completamento 30g',
 
     'nav.focus':          'Focus',
     'focus.eyebrow':      'FOCUS',

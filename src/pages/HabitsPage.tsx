@@ -6,7 +6,10 @@ import { useAchievementToast } from '../hooks/useAchievementToast';
 import { today } from '../lib/dateUtil';
 import { cardOuter, eyebrow, serifItalic, pillPrimary, pillGhost } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost } from '../lib/fbStyles';
-import type { Habit, HabitWeekStat } from '../types';
+import type { Habit, HabitWeekStat, HabitStats } from '../types';
+import StreakBadge from '../components/StreakBadge';
+import WeeklySummaryCard from '../components/WeeklySummaryCard';
+import ModuleInsightsCard from '../components/ModuleInsightsCard';
 
 // ── Preset icons ──────────────────────────────────────────────────────────────
 const PRESET_ICONS = ['✅', '💪', '🏃', '📖', '💧', '🧘', '🥗', '😴', '🎯', '🎨', '🎵', '🧹', '🌿', '🛁', '🧴'];
@@ -179,7 +182,7 @@ export default function HabitsPage() {
   const [tab, setTab] = useState<Tab>('today');
   const [habits, setHabits] = useState<Habit[]>([]);
   const [weekStats, setWeekStats] = useState<HabitWeekStat[]>([]);
-  const [streaks, setStreaks] = useState<Record<number, number>>({});
+  const [habitStats, setHabitStats] = useState<Record<number, HabitStats>>({});
   const [checkedToday, setCheckedToday] = useState<Set<number>>(new Set());
 
   // Form state
@@ -210,14 +213,14 @@ export default function HabitsPage() {
     } catch {}
   }, [todayStr]);
 
-  const loadStreaks = useCallback(async (list: Habit[]) => {
+  const loadHabitStats = useCallback(async (list: Habit[]) => {
     try {
       const results = await Promise.all(
-        list.map(h => api.habits.getCurrentStreak(h.id).then(r => ({ id: h.id, streak: r.streak })))
+        list.map(h => api.habits.getStats(h.id).then(r => ({ id: h.id, stats: r })))
       );
-      const map: Record<number, number> = {};
-      results.forEach(r => { map[r.id] = r.streak; });
-      setStreaks(map);
+      const map: Record<number, HabitStats> = {};
+      results.forEach(r => { map[r.id] = r.stats; });
+      setHabitStats(map);
     } catch {}
   }, []);
 
@@ -226,10 +229,10 @@ export default function HabitsPage() {
     const init = async () => {
       const list = await loadHabits();
       await loadWeekStats();
-      await loadStreaks(list);
+      await loadHabitStats(list);
     };
     init();
-  }, [loadHabits, loadWeekStats, loadStreaks]);
+  }, [loadHabits, loadWeekStats, loadHabitStats]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
   async function handleToggleToday(habit: Habit) {
@@ -251,7 +254,7 @@ export default function HabitsPage() {
       }
       await loadWeekStats();
       const list = await loadHabits();
-      await loadStreaks(list);
+      await loadHabitStats(list);
     } catch {
       // Revert
       setCheckedToday(prev => {
@@ -268,7 +271,7 @@ export default function HabitsPage() {
       setShowForm(false);
       const list = await loadHabits();
       await loadWeekStats();
-      await loadStreaks(list);
+      await loadHabitStats(list);
       showToast(t('common.saved'), 'success');
     } catch {}
   }
@@ -280,7 +283,7 @@ export default function HabitsPage() {
       setEditingHabit(null);
       const list = await loadHabits();
       await loadWeekStats();
-      await loadStreaks(list);
+      await loadHabitStats(list);
       showToast(t('common.saved'), 'success');
     } catch {}
   }
@@ -290,7 +293,7 @@ export default function HabitsPage() {
       await api.habits.archive(id);
       const list = await loadHabits();
       await loadWeekStats();
-      await loadStreaks(list);
+      await loadHabitStats(list);
     } catch {}
   }
 
@@ -300,7 +303,7 @@ export default function HabitsPage() {
       await api.habits.delete(id);
       const list = await loadHabits();
       await loadWeekStats();
-      await loadStreaks(list);
+      await loadHabitStats(list);
     } catch {}
   }
 
@@ -369,6 +372,27 @@ export default function HabitsPage() {
             </div>
           )}
 
+          {/* ── Weekly aggregate ─────────────────────────────────────────────── */}
+          {habits.length > 0 && Object.keys(habitStats).length > 0 && (() => {
+            const allStats = Object.values(habitStats);
+            const checksThisWeek = allStats.reduce((s, st) => s + st.checks_this_week, 0);
+            const checksPrevWeek = allStats.reduce((s, st) => s + st.checks_prev_week, 0);
+            const onTrackCount = allStats.filter(st => st.on_track).length;
+            const avgRate = allStats.length > 0
+              ? Math.round(allStats.reduce((s, st) => s + st.completion_rate_30d, 0) / allStats.length * 100)
+              : 0;
+            return (
+              <WeeklySummaryCard
+                title={t('habits.weekTitle')}
+                metrics={[
+                  { label: t('habits.checksThisWeek'), thisWeek: checksThisWeek, lastWeek: checksPrevWeek, higherIsBetter: true },
+                  { label: t('habits.onTrack'), thisWeek: onTrackCount, lastWeek: 0 },
+                  { label: t('habits.avgRate30d'), thisWeek: avgRate, lastWeek: 0, unit: '%' },
+                ]}
+              />
+            );
+          })()}
+
           {/* Habit cards */}
           {habits.length === 0 && !showForm && (
             <div style={{
@@ -383,7 +407,7 @@ export default function HabitsPage() {
           {habits.map(habit => {
             const stat = weekStats.find(s => s.habit_id === habit.id);
             const isChecked = checkedToday.has(habit.id);
-            const streak = streaks[habit.id] ?? 0;
+            const stats = habitStats[habit.id];
             const isEditing = editingHabit?.id === habit.id;
             const isHovered = hoveredId === habit.id;
 
@@ -412,19 +436,38 @@ export default function HabitsPage() {
                       {/* Icon */}
                       <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{habit.icon}</span>
 
-                      {/* Name + week dots */}
+                      {/* Name + week dots + progress bar */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fb-text)', marginBottom: 4 }}>
                           {habit.name}
                         </div>
                         {stat && <WeekDots checks={stat.checks} color={habit.color} />}
+                        {stats && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                            <div style={{ flex: 1, background: 'var(--fb-border)', borderRadius: 99, height: 4 }}>
+                              <div style={{
+                                width: `${Math.min(100, (stats.checks_this_week / Math.max(1, stats.target_per_week)) * 100)}%`,
+                                background: habit.color, borderRadius: 99, height: 4,
+                                transition: 'width .3s ease',
+                              }} />
+                            </div>
+                            <span style={{ fontSize: 10, color: 'var(--fb-text-3)', flexShrink: 0 }}>
+                              {stats.checks_this_week}/{stats.target_per_week}x
+                            </span>
+                            {stats.on_track && (
+                              <span style={{ fontSize: 10, color: 'var(--fb-green)', fontWeight: 600, flexShrink: 0 }}>✓</span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Streak */}
-                      {streak > 0 && (
-                        <span style={{ fontSize: 12, color: 'var(--fb-text-2)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}>
-                          🔥 {streak} {t('habits.streak')}
-                        </span>
+                      {stats && (
+                        <StreakBadge
+                          current={stats.current_streak}
+                          best={stats.longest_streak}
+                          emoji="🔥"
+                        />
                       )}
 
                       {/* Check toggle */}
@@ -518,6 +561,9 @@ export default function HabitsPage() {
               </button>
             </div>
           )}
+
+          {/* ── Correlazioni ─────────────────────────────────────────────── */}
+          <ModuleInsightsCard modules={['habits']} />
         </>
       )}
 
@@ -535,7 +581,7 @@ export default function HabitsPage() {
           ) : (
             habits.map(habit => {
               const stat = weekStats.find(s => s.habit_id === habit.id);
-              const streak = streaks[habit.id] ?? 0;
+              const hStats = habitStats[habit.id];
 
               return (
                 <div key={habit.id} style={{ ...cardOuter, borderLeft: `3px solid ${habit.color}` }}>
@@ -543,15 +589,20 @@ export default function HabitsPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 20 }}>{habit.icon}</span>
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fb-text)' }}>{habit.name}</span>
-                    {streak > 0 && (
-                      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--fb-text-2)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        🔥 {streak} {t('habits.streak')}
-                      </span>
+                    {hStats && hStats.current_streak > 0 && (
+                      <StreakBadge current={hStats.current_streak} best={hStats.longest_streak} emoji="🔥" />
                     )}
                   </div>
 
                   {/* 90-day heatmap */}
                   <div>
+                    {hStats && (
+                      <div style={{ fontSize: 11, color: 'var(--fb-text-3)', marginBottom: 4 }}>
+                        {t('habits.completionRate30d')}: <strong style={{ color: 'var(--fb-text-2)' }}>
+                          {Math.round(hStats.completion_rate_30d * 100)}%
+                        </strong>
+                      </div>
+                    )}
                     <div style={{ fontSize: 10, color: 'var(--fb-text-3)', marginBottom: 6, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase' }}>
                       {t('habits.last90Days')}
                     </div>
