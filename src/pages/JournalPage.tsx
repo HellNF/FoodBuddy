@@ -10,7 +10,10 @@ import { useAchievementToast } from '../hooks/useAchievementToast';
 import { today, addDays, formatShortDate } from '../lib/dateUtil';
 import { cardOuter, eyebrow } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost } from '../lib/fbStyles';
-import type { MoodEntry, MoodTrendPoint } from '../types';
+import type { MoodEntry, MoodTrendPoint, MoodStats } from '../types';
+import StreakBadge from '../components/StreakBadge';
+import WeeklySummaryCard from '../components/WeeklySummaryCard';
+import ModuleInsightsCard from '../components/ModuleInsightsCard';
 
 // ── Rating picker helpers ────────────────────────────────────────────────────
 
@@ -81,6 +84,10 @@ export default function JournalPage() {
   const isEditMode = editing || !existingEntry;
 
   const [trendData, setTrendData] = useState<MoodTrendPoint[]>([]);
+  const [moodStats, setMoodStats] = useState<MoodStats | null>(null);
+  const [dailyNote, setDailyNote] = useState('');
+  const [noteLoaded, setNoteLoaded] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -99,12 +106,25 @@ export default function JournalPage() {
       .catch(() => {});
   }, [todayStr]);
 
-  // Load 14-day trend
+  // Load 30-day trend
   useEffect(() => {
-    const from = addDays(todayStr, -13);
+    const from = addDays(todayStr, -29);
     api.mood.range(from, todayStr)
       .then(rows => setTrendData(rows))
       .catch(() => {});
+  }, [todayStr]);
+
+  // Load 30-day mood stats and daily note
+  useEffect(() => {
+    api.mood.getStats(addDays(todayStr, -29), todayStr)
+      .then(stats => setMoodStats(stats))
+      .catch(() => {});
+    api.notes.get(todayStr)
+      .then(n => {
+        setDailyNote(n?.note ?? '');
+        setNoteLoaded(true);
+      })
+      .catch(() => setNoteLoaded(true));
   }, [todayStr]);
 
   function autoResize() {
@@ -127,7 +147,7 @@ export default function JournalPage() {
       setEditing(false);
       showToast(t('journal.saved'));
       // Refresh trend
-      const from = addDays(todayStr, -13);
+      const from = addDays(todayStr, -29);
       const rows = await api.mood.range(from, todayStr);
       setTrendData(rows);
       api.gamification.addPoints({ module: 'journal', reason: 'journal_logged', points: 5 })
@@ -150,7 +170,7 @@ export default function JournalPage() {
       setStressVal(null);
       setNote('');
       // Refresh trend
-      const from = addDays(todayStr, -13);
+      const from = addDays(todayStr, -29);
       const rows = await api.mood.range(from, todayStr);
       setTrendData(rows);
     } catch {
@@ -158,11 +178,23 @@ export default function JournalPage() {
     }
   }
 
-  // Build chart data: fill all 14 days even if no entry
+  async function handleNoteSave() {
+    setNoteSaving(true);
+    try {
+      await api.notes.save({ date: todayStr, note: dailyNote });
+      showToast(t('common.saved'), 'success');
+    } catch {
+      showToast(t('common.error') ?? 'Error');
+    } finally {
+      setNoteSaving(false);
+    }
+  }
+
+  // Build chart data: fill all 30 days even if no entry
   const chartData = (() => {
     const map = new Map(trendData.map(p => [p.date, p]));
     const result = [];
-    for (let i = 13; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
       const d = addDays(todayStr, -i);
       const p = map.get(d);
       result.push({
@@ -187,14 +219,24 @@ export default function JournalPage() {
       {/* Header */}
       <div>
         <div style={eyebrow}>{t('journal.eyebrow')}</div>
-        <h1 style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 26, fontWeight: 600,
-          color: 'var(--fb-text)', margin: '4px 0 0',
-          letterSpacing: -0.5,
-        }}>
-          {t('journal.title')}
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 26, fontWeight: 600,
+            color: 'var(--fb-text)', margin: '4px 0 0',
+            letterSpacing: -0.5,
+          }}>
+            {t('journal.title')}
+          </h1>
+          {moodStats && (
+            <StreakBadge
+              current={moodStats.logged_streak}
+              best={moodStats.best_logged_streak}
+              emoji="📓"
+              label={t('journal.logStreak')}
+            />
+          )}
+        </div>
       </div>
 
       {/* Today's entry */}
@@ -296,9 +338,9 @@ export default function JournalPage() {
         )}
       </div>
 
-      {/* 14-day trend */}
+      {/* 30-day trend */}
       <div style={cardOuter}>
-        <div style={eyebrow}>{t('journal.trend14')}</div>
+        <div style={eyebrow}>{t('journal.trend30')}</div>
 
         {chartData.some(d => d.mood != null || d.energy != null || d.stress != null) ? (
           <ResponsiveContainer width="100%" height={200}>
@@ -309,7 +351,7 @@ export default function JournalPage() {
                 tick={{ fill: 'var(--fb-text-3)', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
-                interval={1}
+                interval={2}
               />
               <YAxis
                 domain={[1, 5]}
@@ -364,6 +406,103 @@ export default function JournalPage() {
           ))}
         </div>
       </div>
+
+      {/* ── Weekly Summary ──────────────────────────────────────────────── */}
+      {moodStats && (
+        <WeeklySummaryCard
+          title={t('journal.weekTitle')}
+          metrics={[
+            {
+              label: t('journal.avgMood'),
+              thisWeek: moodStats.week_avg_mood ?? 0,
+              lastWeek: moodStats.last_week_avg_mood ?? 0,
+              format: (v: number) => v.toFixed(1),
+              higherIsBetter: true,
+            },
+            {
+              label: t('journal.daysLogged'),
+              thisWeek: moodStats.days.filter(d => {
+                const cutoff = addDays(todayStr, -6);
+                return d.date >= cutoff && (d.mood != null || d.energy != null || d.stress != null);
+              }).length,
+              lastWeek: moodStats.days.filter(d => {
+                const from = addDays(todayStr, -13);
+                const to = addDays(todayStr, -7);
+                return d.date >= from && d.date <= to && (d.mood != null || d.energy != null || d.stress != null);
+              }).length,
+              higherIsBetter: true,
+            },
+          ]}
+        />
+      )}
+
+      {/* ── Avg stats + best/worst ──────────────────────────────────────── */}
+      {moodStats && (moodStats.avg_energy != null || moodStats.avg_stress != null || moodStats.best_day || moodStats.worst_day) && (
+        <div style={{ ...cardOuter, gap: 10 }}>
+          <div style={eyebrow}>{t('journal.overviewTitle')}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {moodStats.avg_energy != null && (
+              <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px', flex: 1, minWidth: 100 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('journal.energy')}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>{moodStats.avg_energy.toFixed(1)}/5</div>
+              </div>
+            )}
+            {moodStats.avg_stress != null && (
+              <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px', flex: 1, minWidth: 100 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('journal.stress')}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{moodStats.avg_stress.toFixed(1)}/5</div>
+              </div>
+            )}
+            {moodStats.best_day && (
+              <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px', flex: 1, minWidth: 100 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('journal.bestDay')}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fb-text)' }}>{moodStats.best_day.date}</div>
+                <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>😊 {moodStats.best_day.mood}/5</div>
+              </div>
+            )}
+            {moodStats.worst_day && (
+              <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px', flex: 1, minWidth: 100 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('journal.worstDay')}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fb-text)' }}>{moodStats.worst_day.date}</div>
+                <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>😞 {moodStats.worst_day.mood}/5</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Nota del giorno ─────────────────────────────────────────────── */}
+      {noteLoaded && (
+        <div style={cardOuter}>
+          <div style={eyebrow}>{t('journal.dailyNote')}</div>
+          <textarea
+            value={dailyNote}
+            onChange={e => setDailyNote(e.target.value)}
+            placeholder={t('journal.dailyNotePlaceholder')}
+            rows={3}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'var(--fb-card)', border: '1px solid var(--fb-border)',
+              color: 'var(--fb-text)', borderRadius: 10, padding: '8px 10px',
+              fontSize: 13, outline: 'none', resize: 'vertical' as const,
+              fontFamily: 'var(--font-body)', lineHeight: 1.5,
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <button
+              type="button"
+              style={{ ...fbBtnPrimary, opacity: noteSaving ? 0.7 : 1 }}
+              onClick={handleNoteSave}
+              disabled={noteSaving}
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Correlazioni ─────────────────────────────────────────────────── */}
+      <ModuleInsightsCard modules={['journal']} />
     </div>
   );
 }
