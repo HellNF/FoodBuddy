@@ -62,7 +62,7 @@ function renderInsight(raw, lang = 'it') {
   const labels = LABELS[lang] || LABELS.it;
 
   let text = '';
-  let actionHint = null;
+  let actionHint = undefined;
 
   if (raw.kind === 'association') {
     const { contrast, weekendControlled, nutrition, reliabilityBasis, n } = raw;
