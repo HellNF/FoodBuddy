@@ -30,9 +30,9 @@ describe('insights IPC logic', () => {
     expect(Array.isArray(res.insights)).toBe(true);
     expect(res.dataQuality).toBeTruthy();
   });
-  it('getInsights honors insights.enabled=0 in settings', () => {
+  it('getInsights honors insights_enabled=0 in settings', () => {
     const db = makeDb();
-    db.prepare("INSERT INTO settings (key,value) VALUES ('insights.enabled','0')").run();
+    db.prepare("INSERT INTO settings (key,value) VALUES ('insights_enabled','0')").run();
     expect(getInsights(db, { windowDays: 90, today: '2025-01-10' }).insights).toEqual([]);
   });
   it('setReliability + clearReliability round-trip', () => {

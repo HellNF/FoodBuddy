@@ -3,28 +3,25 @@ const { getDb } = require('../db');
 const { buildInsights } = require('../lib/insights/insightBuilder');
 const { setDayReliability, clearDayReliability } = require('../lib/insights/reliability');
 
+// Keys as stored in the settings table (snake_case, matching the frontend convention)
 const SETTING_DEFAULTS = {
-  'insights.enabled': true,
-  'insights.useNutrition': true,
-  'insights.includeApproxDays': false,
-  'insights.minPairN': 21,
-  'insights.fdrQ': 0.10,
-  'insights.sleepTargetMin': 480,
-  'insights.windowDays': 90,
+  'insights_enabled':            { short: 'enabled',           def: true },
+  'insights_use_nutrition':      { short: 'useNutrition',      def: true },
+  'insights_include_approx_days':{ short: 'includeApproxDays', def: false },
+  'insights_min_pair_n':         { short: 'minPairN',          def: 21 },
+  'insights_fdr_q':              { short: 'fdrQ',              def: 0.10 },
+  'insights_sleep_target_min':   { short: 'sleepTargetMin',    def: 480 },
+  'insights_window_days':        { short: 'windowDays',        def: 90 },
 };
 
 function readSettings(db) {
-  const rows = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'insights.%'").all();
+  const rows = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'insights_%'").all();
   const raw = {};
   for (const r of rows) raw[r.key] = r.value;
 
   const s = {};
-  for (const [k, def] of Object.entries(SETTING_DEFAULTS)) {
-    const short = k.slice('insights.'.length);
-    if (!(k in raw)) {
-      s[short] = def;
-      continue;
-    }
+  for (const [k, { short, def }] of Object.entries(SETTING_DEFAULTS)) {
+    if (!(k in raw)) { s[short] = def; continue; }
     const v = raw[k];
     s[short] = typeof def === 'boolean' ? (v === '1' || v === 'true') : Number(v);
   }
