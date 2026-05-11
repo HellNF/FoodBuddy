@@ -27,6 +27,122 @@ function getSessionWithSets(db, id) {
   return { ...session, sets };
 }
 
+// ── ISO week helpers ──────────────────────────────────────────────────────────
+
+function getISOWeek(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  const thursday = new Date(d);
+  thursday.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7));
+  const yearStart = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil((((thursday - yearStart) / 86400000) + 1) / 7);
+  return `${thursday.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function offsetDate(dateStr, n) {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function adjacentWeek(weekStr, n) {
+  const [yearStr, wStr] = weekStr.split('-W');
+  const year = parseInt(yearStr);
+  const week = parseInt(wStr);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const week1Monday = new Date(jan4);
+  week1Monday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));
+  const targetMonday = new Date(week1Monday);
+  targetMonday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7 + n * 7);
+  return getISOWeek(targetMonday.toISOString().slice(0, 10));
+}
+
+// ── computeWorkoutStats ───────────────────────────────────────────────────────
+
+function computeWorkoutStats(db, { from, to, today: todayStr }) {
+  // 1. days array
+  const days = db.prepare(`
+    SELECT date,
+      COALESCE(SUM(duration_min), 0)    AS duration_min,
+      COALESCE(SUM(calories_burned), 0) AS calories_burned,
+      COUNT(*)                           AS sessions
+    FROM workout_sessions
+    WHERE date >= ? AND date <= ?
+    GROUP BY date
+    ORDER BY date ASC
+  `).all(from, to);
+
+  // 2. streak (weekly)
+  const weekSet = new Set(days.map(d => getISOWeek(d.date)));
+  const todayWeek = getISOWeek(todayStr);
+
+  let current_streak = 0;
+  let w = todayWeek;
+  while (weekSet.has(w)) { current_streak++; w = adjacentWeek(w, -1); }
+
+  const sortedWeeks = [...weekSet].sort();
+  let best_streak = 0, run = 0;
+  for (let i = 0; i < sortedWeeks.length; i++) {
+    if (i === 0 || adjacentWeek(sortedWeeks[i - 1], 1) === sortedWeeks[i]) {
+      run++;
+    } else {
+      run = 1;
+    }
+    best_streak = Math.max(best_streak, run);
+  }
+
+  // 3. rolling 7-day windows
+  const d7start = offsetDate(todayStr, -6);   // last 7 days: [today-6 .. today]
+  const d14start = offsetDate(todayStr, -13); // days 8-14:   [today-13 .. today-7]
+  const d14end = offsetDate(todayStr, -7);
+
+  let week_sessions = 0, last_week_sessions = 0;
+  let week_min = 0, last_week_min = 0;
+  let total_min_30d = 0, sessions_30d = 0;
+
+  for (const row of days) {
+    total_min_30d += row.duration_min;
+    sessions_30d += row.sessions;
+    if (row.date >= d7start && row.date <= todayStr) {
+      week_sessions += row.sessions;
+      week_min += row.duration_min;
+    }
+    if (row.date >= d14start && row.date <= d14end) {
+      last_week_sessions += row.sessions;
+      last_week_min += row.duration_min;
+    }
+  }
+
+  // 4. by_exercise
+  const by_exercise = db.prepare(`
+    SELECT e.id AS exercise_id, e.name,
+           COUNT(DISTINCT s.id) AS sessions,
+           COUNT(wes.id) AS total_sets,
+           COALESCE(SUM(CASE WHEN wes.reps IS NOT NULL AND wes.weight_kg IS NOT NULL THEN wes.reps * wes.weight_kg ELSE 0 END), 0) AS total_volume_kg,
+           COALESCE(MAX(wes.weight_kg), 0) AS best_weight_kg,
+           COALESCE(MAX(CASE WHEN wes.reps IS NOT NULL AND wes.weight_kg IS NOT NULL THEN wes.weight_kg * (1 + wes.reps / 30.0) ELSE NULL END), 0) AS best_est_1rm_kg
+    FROM workout_sessions s
+    JOIN workout_exercise_sets wes ON wes.session_id = s.id
+    JOIN exercises e ON e.id = wes.exercise_id
+    WHERE s.date >= ? AND s.date <= ?
+    GROUP BY e.id, e.name
+    ORDER BY total_volume_kg DESC
+    LIMIT 8
+  `).all(from, to);
+
+  return {
+    days,
+    current_streak,
+    best_streak,
+    week_sessions,
+    last_week_sessions,
+    week_min,
+    last_week_min,
+    total_min_30d,
+    sessions_30d,
+    by_exercise,
+  };
+}
+
 function registerWorkoutsIpc() {
   // ── workouts:startSession ─────────────────────────────────────────────────
   ipcMain.handle('workouts:startSession', (_, { date, plan_id, note } = {}) => {
@@ -172,6 +288,15 @@ function registerWorkoutsIpc() {
     `).all(from, to);
   });
 
+  // ── workouts:getStats ─────────────────────────────────────────────────────
+  ipcMain.handle('workouts:getStats', (_, a) =>
+    computeWorkoutStats(getDb(), {
+      from: a.from,
+      to: a.to,
+      today: a.today || new Date().toISOString().slice(0, 10),
+    })
+  );
+
   // ── workouts:deleteSession ────────────────────────────────────────────────
   ipcMain.handle('workouts:deleteSession', (_, { id } = {}) => {
     const db = getDb();
@@ -190,3 +315,4 @@ function registerWorkoutsIpc() {
 }
 
 module.exports = registerWorkoutsIpc;
+module.exports.computeWorkoutStats = computeWorkoutStats;
