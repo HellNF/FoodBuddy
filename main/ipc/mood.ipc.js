@@ -44,11 +44,12 @@ function computeMoodStats(db, { from, to, today }) {
     prevDate = date;
   }
 
+  // Caller is expected to pass a 30-day window (from = today-29, to = today)
   const daysLogged = rows.length;
 
-  const moodVals   = rows.filter(r => r.mood   != null).map(r => r.mood);
-  const energyVals = rows.filter(r => r.energy != null).map(r => r.energy);
-  const stressVals = rows.filter(r => r.stress != null).map(r => r.stress);
+  const moodVals   = rows.filter(r => r.mood   !== null).map(r => r.mood);
+  const energyVals = rows.filter(r => r.energy !== null).map(r => r.energy);
+  const stressVals = rows.filter(r => r.stress !== null).map(r => r.stress);
 
   const avgMood   = avg(moodVals);
   const avgEnergy = avg(energyVals);
@@ -59,13 +60,13 @@ function computeMoodStats(db, { from, to, today }) {
   const lastWeekStart = offsetDate(today, -13);
   const lastWeekEnd   = offsetDate(today, -7);
 
-  const weekMoods     = rows.filter(r => r.date >= weekStart && r.date <= today && r.mood != null).map(r => r.mood);
-  const lastWeekMoods = rows.filter(r => r.date >= lastWeekStart && r.date <= lastWeekEnd && r.mood != null).map(r => r.mood);
+  const weekMoods     = rows.filter(r => r.date >= weekStart && r.date <= today && r.mood !== null).map(r => r.mood);
+  const lastWeekMoods = rows.filter(r => r.date >= lastWeekStart && r.date <= lastWeekEnd && r.mood !== null).map(r => r.mood);
 
   const weekAvgMood     = avg(weekMoods);
   const lastWeekAvgMood = avg(lastWeekMoods);
 
-  const moodRows = rows.filter(r => r.mood != null);
+  const moodRows = rows.filter(r => r.mood !== null);
   let bestDay  = null;
   let worstDay = null;
   if (moodRows.length) {
