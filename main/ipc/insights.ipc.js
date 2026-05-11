@@ -1,5 +1,4 @@
 'use strict';
-const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { buildInsights } = require('../lib/insights/insightBuilder');
 const { setDayReliability, clearDayReliability } = require('../lib/insights/reliability');
@@ -57,9 +56,10 @@ function clearReliability(db, { date }) {
 }
 
 function registerInsightsIpc() {
+  const { ipcMain } = require('electron');
   ipcMain.handle('insights:get', (_, args) => getInsights(getDb(), args || {}));
-  ipcMain.handle('insights:setDayReliability', (_, args) => setReliability(getDb(), args));
-  ipcMain.handle('insights:clearDayReliability', (_, args) => clearReliability(getDb(), args));
+  ipcMain.handle('insights:setDayReliability', (_, args) => setReliability(getDb(), args || {}));
+  ipcMain.handle('insights:clearDayReliability', (_, args) => clearReliability(getDb(), args || {}));
 }
 
 module.exports = registerInsightsIpc;
