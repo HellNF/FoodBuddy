@@ -137,8 +137,8 @@ function registerTasksIpc() {
 
 // ── Pure helper: offset a date string by n days ─────────────────────────────
 function offsetDate(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + n);
+  const d = new Date(dateStr + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
 

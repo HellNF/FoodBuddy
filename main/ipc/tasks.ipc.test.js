@@ -27,8 +27,8 @@ function insertTask(db, date, done) {
 }
 
 function offsetDate(base, n) {
-  const d = new Date(base + 'T00:00:00');
-  d.setDate(d.getDate() + n);
+  const d = new Date(base + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
 
@@ -112,6 +112,21 @@ describe('computeTaskStats', () => {
     expect(result.week_done).toBe(3);    // 2 + 1
     expect(result.last_week_total).toBe(1); // 1 task 8 days ago
     expect(result.last_week_done).toBe(1);
+  });
+
+  it('3 consecutive cleared days → best_streak=3', () => {
+    const db = makeDb();
+    // Insert 2 tasks (both done) for each of today, today-1, today-2
+    const today = new Date().toISOString().slice(0, 10);
+    for (let offset = 0; offset <= 2; offset++) {
+      const date = offsetDate(today, -offset);
+      insertTask(db, date, 1);
+      insertTask(db, date, 1);
+    }
+    const from = offsetDate(today, -29);
+    const result = computeTaskStats(db, { from, to: today, today });
+    expect(result.best_streak).toBe(3);
+    expect(result.current_streak).toBe(3);
   });
 
   test('6. avg_completion_rate is mean of rates over days with total > 0', () => {
