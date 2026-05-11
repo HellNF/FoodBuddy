@@ -42,6 +42,7 @@ const ICONS: Record<PageName, string> = {
   focus:        'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-14v4l3 3',
   journal:      'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z',
   achievements: 'M12 2L9 9H2l5.5 4-2 7L12 16l6.5 4-2-7L22 9h-7z',
+  insights:     'M3 3v18h18 M7 14l3-3 4 4 5-6',
 };
 
 // ── Nav item definitions ───────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ const DEFAULT_ORDER: NavItem[] = [
   { page: 'focus',         labelKey: 'nav.focus',         group: 'lifestyle' },
   { page: 'journal',       labelKey: 'nav.journal',       group: 'lifestyle' },
   { page: 'achievements',  labelKey: 'nav.achievements',  group: 'lifestyle' },
+  { page: 'insights',      labelKey: 'nav.insights',      group: 'lifestyle' },
   { page: 'notifications', labelKey: 'nav.notifications', group: 'system' },
   { page: 'data',          labelKey: 'nav.data',          group: 'system' },
   { page: 'settings',      labelKey: 'nav.settings',      group: 'system' },

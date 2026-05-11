@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
 import { useT } from '../../i18n/useT';
+import { useNavigate } from '../../hooks/useNavigate';
 import { fbCard, fbBtnGhost } from '../../lib/fbStyles';
 import type { InsightsResult, Insight } from '../../types';
 
@@ -14,6 +15,7 @@ const DOT: Record<string, string> = { strong: '#16a34a', notice: '#d97706', info
 
 export default function InsightCard() {
   const { t } = useT();
+  const { navigate } = useNavigate();
   const [data, setData] = useState<InsightsResult | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => { api.insights.get().then(setData).catch(() => setErr(true)); }, []);
@@ -25,7 +27,7 @@ export default function InsightCard() {
     <div style={{ ...fbCard, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <strong>{t('insights.card.title')}</strong>
-        <button style={{ ...fbBtnGhost, padding: '3px 8px', fontSize: 11 }} onClick={() => {}}>{t('insights.card.seeAll')}</button>
+        <button style={{ ...fbBtnGhost, padding: '3px 8px', fontSize: 11 }} onClick={() => navigate('insights')}>{t('insights.card.seeAll')}</button>
       </div>
       {err && <div style={{ opacity: .6, fontSize: 13 }}>{t('insights.card.error')}</div>}
       {!err && lowData && <div style={{ opacity: .7, fontSize: 13 }}>{t('insights.card.lowData')}</div>}

@@ -30,6 +30,7 @@ import HabitsPage from './pages/HabitsPage';
 import FocusPage from './pages/FocusPage';
 import JournalPage from './pages/JournalPage';
 import AchievementsPage from './pages/AchievementsPage';
+import InsightsPage from './pages/InsightsPage';
 
 import Nav from './components/Nav';
 import Onboarding from './components/Onboarding';
@@ -98,6 +99,7 @@ function AppInner() {
         {page === 'focus'        && <FocusPage />}
         {page === 'journal'      && <JournalPage />}
         {page === 'achievements' && <AchievementsPage />}
+        {page === 'insights'     && <InsightsPage />}
       </main>
     </div>
   );
