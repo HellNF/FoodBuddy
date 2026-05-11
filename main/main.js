@@ -35,6 +35,7 @@ const registerFocusIpc           = require('./ipc/focus.ipc');
 const registerMoodIpc            = require('./ipc/mood.ipc');
 const registerWorkoutsIpc        = require('./ipc/workouts.ipc');
 const { registerGamificationIpc } = require('./ipc/gamification.ipc');
+const registerInsightsIpc         = require('./ipc/insights.ipc');
 
 let mainWindow;
 
@@ -127,6 +128,7 @@ app.whenReady().then(async () => {
   registerMoodIpc();
   registerWorkoutsIpc();
   registerGamificationIpc();
+  registerInsightsIpc();
 
   createWindow();
 
