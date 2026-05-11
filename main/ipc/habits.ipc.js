@@ -177,6 +177,126 @@ function registerHabitsIpc() {
 
     return { dates: rows.map(r => r.date) };
   });
+
+  // ── Habit stats: streak, completion rate, weekly tracking ──────────────────
+  ipcMain.handle('habits:getStats', (_, a) =>
+    computeHabitStats(getDb(), { habitId: a.habit_id, today: a.today || today() })
+  );
+}
+
+// ── Pure helper: offset a date string by n days ─────────────────────────────
+function offsetDate(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return localDateStr(d);
+}
+
+// ── computeCurrentStreak ─────────────────────────────────────────────────────
+function computeCurrentStreak(db, habitId, todayDate) {
+  const rows = db
+    .prepare('SELECT DISTINCT date FROM habit_logs WHERE habit_id = ? ORDER BY date DESC')
+    .all(habitId)
+    .map(r => r.date);
+
+  if (!rows.length) return 0;
+
+  const dateSet = new Set(rows);
+  let streak = 0;
+  let d = new Date(todayDate + 'T00:00:00');
+
+  // Allow streak to start from today or yesterday
+  if (!dateSet.has(localDateStr(d))) {
+    d.setDate(d.getDate() - 1);
+    if (!dateSet.has(localDateStr(d))) {
+      return 0;
+    }
+  }
+
+  while (dateSet.has(localDateStr(d))) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+
+  return streak;
+}
+
+// ── computeLongestStreak ─────────────────────────────────────────────────────
+function computeLongestStreak(db, habitId) {
+  const rows = db
+    .prepare('SELECT DISTINCT date FROM habit_logs WHERE habit_id = ? ORDER BY date ASC')
+    .all(habitId)
+    .map(r => r.date);
+
+  if (!rows.length) return 0;
+
+  let longest = 1;
+  let current = 1;
+
+  for (let i = 1; i < rows.length; i++) {
+    const prev = new Date(rows[i - 1] + 'T00:00:00');
+    const curr = new Date(rows[i] + 'T00:00:00');
+    const diffDays = Math.round((curr - prev) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
+      current++;
+      if (current > longest) longest = current;
+    } else {
+      current = 1;
+    }
+  }
+
+  return longest;
+}
+
+// ── computeHabitStats ────────────────────────────────────────────────────────
+function computeHabitStats(db, { habitId, today: todayDate }) {
+  const habit = db.prepare('SELECT * FROM habits WHERE id = ?').get(habitId);
+  const target_per_week = (habit && habit.target_per_week != null) ? habit.target_per_week : 7;
+
+  // checks_30d: dates in last 30 days including today
+  const from30 = offsetDate(todayDate, -29);
+  const checks_30d = db
+    .prepare(
+      'SELECT date FROM habit_logs WHERE habit_id = ? AND date >= ? AND date <= ? ORDER BY date ASC'
+    )
+    .all(habitId, from30, todayDate)
+    .map(r => r.date);
+
+  const completion_rate_30d = checks_30d.length / 30;
+
+  // checks_this_week: [today-6, today]
+  const weekStart = offsetDate(todayDate, -6);
+  const checks_this_week = db
+    .prepare(
+      'SELECT COUNT(*) as cnt FROM habit_logs WHERE habit_id = ? AND date >= ? AND date <= ?'
+    )
+    .get(habitId, weekStart, todayDate).cnt;
+
+  // checks_prev_week: [today-13, today-7]
+  const prevWeekStart = offsetDate(todayDate, -13);
+  const prevWeekEnd   = offsetDate(todayDate, -7);
+  const checks_prev_week = db
+    .prepare(
+      'SELECT COUNT(*) as cnt FROM habit_logs WHERE habit_id = ? AND date >= ? AND date <= ?'
+    )
+    .get(habitId, prevWeekStart, prevWeekEnd).cnt;
+
+  const current_streak = computeCurrentStreak(db, habitId, todayDate);
+  const longest_streak = computeLongestStreak(db, habitId);
+  const on_track = checks_this_week >= target_per_week;
+
+  return {
+    current_streak,
+    longest_streak,
+    completion_rate_30d,
+    checks_30d,
+    target_per_week,
+    checks_this_week,
+    checks_prev_week,
+    on_track,
+  };
 }
 
 module.exports = registerHabitsIpc;
+module.exports.computeCurrentStreak = computeCurrentStreak;
+module.exports.computeLongestStreak = computeLongestStreak;
+module.exports.computeHabitStats    = computeHabitStats;
