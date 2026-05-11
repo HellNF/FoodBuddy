@@ -3,11 +3,14 @@ import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n/useT';
 import { useAchievementToast } from '../hooks/useAchievementToast';
-import { today, formatShortDate } from '../lib/dateUtil';
+import { today, addDays, formatShortDate } from '../lib/dateUtil';
 import { cardOuter, eyebrow, serifItalic, pillGhost } from '../lib/fbUI';
 import { fbBtnPrimary } from '../lib/fbStyles';
 import BarChartCard from '../components/BarChartCard';
-import type { SleepEntry, SleepTrendPoint } from '../types';
+import StreakBadge from '../components/StreakBadge';
+import WeeklySummaryCard from '../components/WeeklySummaryCard';
+import ModuleInsightsCard from '../components/ModuleInsightsCard';
+import type { SleepEntry, SleepStats } from '../types';
 
 const FACTORS = ['Caffeina', 'Stress', 'Alcol', 'Schermi', 'Esercizio'] as const;
 
@@ -18,14 +21,6 @@ function formatDuration(min: number | null): string {
   if (h === 0) return `${m}m`;
   if (m === 0) return `${h}h`;
   return `${h}h ${m}m`;
-}
-
-function getLast14Days(): { from: string; to: string } {
-  const to = today();
-  const d = new Date(to);
-  d.setDate(d.getDate() - 13);
-  const from = d.toISOString().slice(0, 10);
-  return { from, to };
 }
 
 export default function SleepPage() {
@@ -41,7 +36,8 @@ export default function SleepPage() {
   const [factors, setFactors]     = useState<string[]>([]);
   const [note, setNote]           = useState('');
   const [saving, setSaving]       = useState(false);
-  const [trendData, setTrendData] = useState<SleepTrendPoint[]>([]);
+  const [sleepStats, setSleepStats] = useState<SleepStats | null>(null);
+  const [sleepStreak, setSleepStreak] = useState<{ current: number; best: number }>({ current: 0, best: 0 });
 
   const todayStr = today();
 
@@ -63,20 +59,32 @@ export default function SleepPage() {
 
   const isEditMode = editing || !entry;
 
-  const loadTrend = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     try {
-      const { from, to } = getLast14Days();
-      const rows = await api.sleep.range(from, to) as SleepTrendPoint[];
-      setTrendData(rows);
+      const from = addDays(today(), -29);
+      const to = today();
+      const stats = await api.sleep.getStats(from, to);
+      setSleepStats(stats);
     } catch {
-      // leave state as-is on error
+      // ignore
+    }
+  }, []);
+
+  const loadStreaks = useCallback(async () => {
+    try {
+      const streaks = await api.sectionStreaks.getAll();
+      const sec = streaks.find(s => s.section === 'sleep');
+      if (sec) setSleepStreak({ current: sec.current_streak, best: sec.longest_streak });
+    } catch {
+      // ignore
     }
   }, []);
 
   useEffect(() => {
     loadEntry();
-    loadTrend();
-  }, [loadEntry, loadTrend]);
+    loadStats();
+    loadStreaks();
+  }, [loadEntry, loadStats, loadStreaks]);
 
   function toggleFactor(f: string) {
     setFactors(prev =>
@@ -98,7 +106,7 @@ export default function SleepPage() {
       showToast(t('common.saved'), 'success');
       setEditing(false);
       await loadEntry();
-      await loadTrend();
+      await loadStats();
       api.gamification.addPoints({ module: 'sleep', reason: 'sleep_logged', points: 10, context: { date: todayStr } })
         .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
         .catch(() => {});
@@ -114,28 +122,12 @@ export default function SleepPage() {
       setEntry(null);
       setEditing(false);
       setBedtime(''); setWakeTime(''); setQuality(0); setFactors([]); setNote('');
-      await loadTrend();
+      await loadStats();
       showToast(t('sleep.deleted'), 'success');
     } catch {
       // leave state as-is on error
     }
   }
-
-  // Chart data: last 14 days, x = short date, y = duration in hours (decimal)
-  const { from } = getLast14Days();
-  const allDates: string[] = [];
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(from);
-    d.setDate(d.getDate() + i);
-    allDates.push(d.toISOString().slice(0, 10));
-  }
-  const trendMap = new Map(trendData.map(r => [r.date, r]));
-  const chartData = allDates.map(date => ({
-    label: formatShortDate(date),
-    value: trendMap.get(date)?.duration_min != null
-      ? Math.round((trendMap.get(date)!.duration_min! / 60) * 10) / 10
-      : 0,
-  }));
 
   const inputCls: CSSProperties = {
     width: '100%',
@@ -155,9 +147,12 @@ export default function SleepPage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={eyebrow}>{t('sleep.eyebrow')}</span>
-        <span style={{ ...serifItalic, fontSize: 26, fontWeight: 400, color: 'var(--fb-text)', letterSpacing: -0.5, lineHeight: 1.1 }}>
-          {t('sleep.subtitle')}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ ...serifItalic, fontSize: 26, fontWeight: 400, color: 'var(--fb-text)', letterSpacing: -0.5, lineHeight: 1.1 }}>
+            {t('sleep.subtitle')}
+          </span>
+          <StreakBadge current={sleepStreak.current} best={sleepStreak.best} emoji="😴" />
+        </div>
       </header>
 
       {/* ── Log today ──────────────────────────────────────────────────────── */}
@@ -306,59 +301,118 @@ export default function SleepPage() {
         )}
       </section>
 
-      {/* ── Trend 14 days ──────────────────────────────────────────────────── */}
+      {/* ── Trend 30 days ──────────────────────────────────────────────────── */}
       <section style={cardOuter}>
         <div>
-          <span style={eyebrow}>{t('sleep.trend14')}</span>
+          <span style={eyebrow}>{t('sleep.trend30')}</span>
           <div style={{ ...serifItalic, fontSize: 15, color: 'var(--fb-text-2)', marginTop: 2 }}>
             {t('sleep.trendSubtitle')}
           </div>
         </div>
 
-        {chartData.some(d => d.value > 0) ? (
+        {sleepStats && sleepStats.days.some(d => d.duration_min != null) ? (
           <BarChartCard
-            data={chartData}
+            data={sleepStats.days.map(d => ({
+              label: formatShortDate(d.date),
+              value: d.duration_min != null ? Math.round((d.duration_min / 60) * 10) / 10 : 0,
+            }))}
             height={200}
             unit="h"
+            goalValue={8}
             color="var(--fb-accent)"
           />
         ) : (
           <div style={{
             textAlign: 'center', padding: '32px 16px',
-            color: 'var(--fb-text-3)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            border: '1px dashed var(--fb-border)',
-            borderRadius: 12,
+            color: 'var(--fb-text-3)', fontSize: 13, fontStyle: 'italic',
+            border: '1px dashed var(--fb-border)', borderRadius: 12,
           }}>
             {t('sleep.noData')}
           </div>
         )}
 
         {/* Summary stats */}
-        {trendData.length > 0 && (() => {
-          const withData = trendData.filter(r => r.duration_min != null);
-          if (withData.length === 0) return null;
-          const avgMin = Math.round(withData.reduce((s, r) => s + r.duration_min!, 0) / withData.length);
-          const avgQuality = withData.filter(r => r.quality != null).length > 0
-            ? (withData.filter(r => r.quality != null).reduce((s, r) => s + r.quality!, 0) / withData.filter(r => r.quality != null).length).toFixed(1)
-            : null;
-          return (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
-              <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('sleep.avgDuration')}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fb-text)', letterSpacing: -0.5 }}>{formatDuration(avgMin)}</div>
-              </div>
-              {avgQuality && (
-                <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('sleep.avgQuality')}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fb-text)', letterSpacing: -0.5 }}>{avgQuality}/5</div>
-                </div>
-              )}
+        {sleepStats && sleepStats.avg_duration_min != null && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
+            <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('sleep.avgDuration')}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fb-text)', letterSpacing: -0.5 }}>{formatDuration(sleepStats.avg_duration_min)}</div>
             </div>
-          );
-        })()}
+            {sleepStats.avg_quality != null && (
+              <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('sleep.avgQuality')}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fb-text)', letterSpacing: -0.5 }}>{sleepStats.avg_quality.toFixed(1)}/5</div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
+
+      {/* ── Weekly Summary ───────────────────────────────────────────────────── */}
+      {sleepStats && (
+        <WeeklySummaryCard
+          title={t('sleep.weekTitle')}
+          metrics={[
+            {
+              label: t('sleep.avgDuration'),
+              thisWeek: sleepStats.week_avg_min != null ? Math.round((sleepStats.week_avg_min / 60) * 10) / 10 : 0,
+              lastWeek: sleepStats.last_week_avg_min != null ? Math.round((sleepStats.last_week_avg_min / 60) * 10) / 10 : 0,
+              unit: 'h',
+              higherIsBetter: true,
+            },
+            {
+              label: t('sleep.nightsLogged'),
+              thisWeek: sleepStats.days.filter(d => {
+                const cutoff = addDays(today(), -6);
+                return d.date >= cutoff && d.duration_min != null;
+              }).length,
+              lastWeek: sleepStats.days.filter(d => {
+                const from = addDays(today(), -13);
+                const to = addDays(today(), -7);
+                return d.date >= from && d.date <= to && d.duration_min != null;
+              }).length,
+              higherIsBetter: true,
+            },
+            {
+              label: t('sleep.debt7d'),
+              thisWeek: Math.round(sleepStats.debt_min_7d / 60 * 10) / 10,
+              lastWeek: 0,
+              unit: 'h',
+              higherIsBetter: false,
+            },
+          ]}
+        />
+      )}
+
+      {/* ── Fattori più frequenti ─────────────────────────────────────────── */}
+      {sleepStats && sleepStats.factor_counts.length > 0 && (
+        <section style={cardOuter}>
+          <span style={eyebrow}>{t('sleep.factorsTitle')}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            {sleepStats.factor_counts.slice(0, 6).map(fc => {
+              const max = sleepStats.factor_counts[0].count;
+              const pct = max > 0 ? (fc.count / max) * 100 : 0;
+              return (
+                <div key={fc.factor} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, color: 'var(--fb-text-2)', width: 80, flexShrink: 0 }}>{fc.factor}</span>
+                  <div style={{ flex: 1, background: 'var(--fb-border)', borderRadius: 99, height: 6 }}>
+                    <div style={{ width: `${pct}%`, background: 'var(--fb-accent)', borderRadius: 99, height: 6 }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--fb-text-3)', width: 24, textAlign: 'right' }}>{fc.count}</span>
+                </div>
+              );
+            })}
+          </div>
+          {sleepStats.best_night && (
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--fb-text-2)' }}>
+              🌙 {t('sleep.bestNight')}: <strong>{sleepStats.best_night.date}</strong> · {formatDuration(sleepStats.best_night.duration_min)}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Correlazioni ─────────────────────────────────────────────────── */}
+      <ModuleInsightsCard modules={['sleep']} />
 
     </div>
   );
