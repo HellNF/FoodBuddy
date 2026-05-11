@@ -31,3 +31,40 @@ describe('rank', () => {
   it('average-ranks ties', () => { expect(rank([1,2,2,3])).toEqual([1, 2.5, 2.5, 4]); });
   it('all equal values', () => { expect(rank([1,1,1])).toEqual([2,2,2]); });
 });
+
+const { permutationTest, benjaminiHochberg } = require('./stats');
+
+describe('permutationTest', () => {
+  it('strong relationship → tiny p', () => {
+    const x = Array.from({ length: 30 }, (_, i) => i);
+    const y = x.map(v => v * 2 + 1);
+    const { stat, pValue } = permutationTest(x, y, require('./stats').pearson, 2000, 123);
+    expect(stat).toBeCloseTo(1, 6);
+    expect(pValue).toBeLessThan(0.01);
+  });
+  it('shuffled-null relationship → large p', () => {
+    const x = Array.from({ length: 30 }, (_, i) => i);
+    const y = [12,3,27,8,19,1,25,14,6,30,2,17,9,22,5,28,11,4,20,13,7,29,16,10,24,15,18,21,23,26];
+    const { pValue } = permutationTest(x, y, require('./stats').pearson, 2000, 123);
+    expect(pValue).toBeGreaterThan(0.05);
+  });
+  it('is deterministic for a seed', () => {
+    const x = [1,2,3,4,5,6,7,8], y = [2,1,4,3,6,5,8,7];
+    const a = permutationTest(x, y, require('./stats').pearson, 500, 7);
+    const b = permutationTest(x, y, require('./stats').pearson, 500, 7);
+    expect(a.pValue).toBe(b.pValue);
+  });
+});
+
+describe('benjaminiHochberg', () => {
+  it('textbook example', () => {
+    // BH at q=0.05, m=10: thresholds are k/10*0.05
+    // k=8: p_(8)=0.0344 <= 0.040 ✓  k=9: p_(9)=0.0459 > 0.045 ✗ → maxK=8
+    const ps = [0.0001, 0.0004, 0.0019, 0.0095, 0.0201, 0.0278, 0.0298, 0.0344, 0.0459, 0.3240];
+    const { survived } = benjaminiHochberg(ps, 0.05);
+    expect(survived).toEqual([true, true, true, true, true, true, true, true, false, false]);
+  });
+  it('empty input', () => {
+    expect(benjaminiHochberg([], 0.1)).toEqual({ survived: [], qValues: [] });
+  });
+});

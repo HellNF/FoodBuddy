@@ -57,4 +57,47 @@ function spearman(x, y) {
   return pearson(rank(x.slice(0, n)), rank(y.slice(0, n)));
 }
 
-module.exports = { median, mean, mulberry32, pearson, spearman, rank };
+// Two-sided permutation test for a correlation-like statistic.
+function permutationTest(x, y, corrFn, iters = 2000, seed = 1) {
+  const n = Math.min(x.length, y.length);
+  const xs = x.slice(0, n), ys = y.slice(0, n);
+  const observed = corrFn(xs, ys);
+  if (n < 4) return { stat: observed, pValue: 1 };
+  const rng = mulberry32(seed);
+  let extreme = 0;
+  const perm = ys.slice();
+  for (let it = 0; it < iters; it++) {
+    // Fisher–Yates shuffle of `perm`
+    for (let i = perm.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = perm[i]; perm[i] = perm[j]; perm[j] = tmp;
+    }
+    if (Math.abs(corrFn(xs, perm)) >= Math.abs(observed) - 1e-12) extreme++;
+  }
+  return { stat: observed, pValue: (extreme + 1) / (iters + 1) };
+}
+
+// Benjamini–Hochberg step-up. Returns which hypotheses survive at level q + adjusted q-values.
+function benjaminiHochberg(pvalues, q = 0.1) {
+  const m = pvalues.length;
+  if (m === 0) return { survived: [], qValues: [] };
+  const order = pvalues.map((p, i) => [p, i]).sort((a, b) => a[0] - b[0]);
+  // largest k such that p_(k) <= (k/m)*q
+  let maxK = 0;
+  for (let k = 1; k <= m; k++) {
+    if (order[k - 1][0] <= (k / m) * q) maxK = k;
+  }
+  const survived = new Array(m).fill(false);
+  for (let k = 0; k < maxK; k++) survived[order[k][1]] = true;
+  // adjusted q-values (monotone from the top)
+  const qv = new Array(m).fill(1);
+  let running = 1;
+  for (let k = m; k >= 1; k--) {
+    const adj = Math.min(1, (order[k - 1][0] * m) / k);
+    running = Math.min(running, adj);
+    qv[order[k - 1][1]] = running;
+  }
+  return { survived, qValues: qv };
+}
+
+module.exports = { median, mean, mulberry32, pearson, spearman, rank, permutationTest, benjaminiHochberg };
