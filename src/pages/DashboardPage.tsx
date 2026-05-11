@@ -33,6 +33,8 @@ import HabitsCard from '../components/dashboard/HabitsCard';
 import FocusCard from '../components/dashboard/FocusCard';
 import MoodCard from '../components/dashboard/MoodCard';
 import WorkoutCard from '../components/dashboard/WorkoutCard';
+import ReliabilityPill from '../components/dashboard/ReliabilityPill';
+import InsightCard from '../components/dashboard/InsightCard';
 import DeductionEventModal from '../components/DeductionEventModal';
 import {
   MEAL_ORDER,
@@ -629,6 +631,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           />
 
           {/* ── DIARY TABLE ─────────────────────────────────────────────── */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ReliabilityPill date={dateStr} />
+          </div>
           <DiaryTable
             mealGroups={mealGroups}
             loggedEntries={loggedEntries}
@@ -654,6 +659,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           <section>
             <WorkoutCard />
           </section>
+
+          {/* ── INSIGHT OF THE DAY ──────────────────────────────────────── */}
+          <InsightCard />
 
           {/* ── SECONDARY BENTO ─────────────────────────────────────────── */}
           <section className="dash-secondary-grid">

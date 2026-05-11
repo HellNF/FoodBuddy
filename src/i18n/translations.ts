@@ -768,6 +768,16 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'onboarding.nameLabel':     'Name (optional)',
     'onboarding.namePlaceholder': "What's your name?",
     'onboarding.loading':       'Loading...',
+
+    'insights.reliability.precise':  'Accurate',
+    'insights.reliability.approx':   'Rough',
+    'insights.reliability.none':     'Not logged',
+    'insights.reliability.auto':     'auto',
+    'insights.reliability.tooltip':  'How precise today\'s food diary is (used by insights)',
+    'insights.card.title':   'Insight of the day',
+    'insights.card.seeAll':  'See all',
+    'insights.card.lowData': 'Still getting to know you — log a few more days and your patterns will show up here.',
+    'insights.card.error':   'Insights unavailable.',
   },
 
   it: {
@@ -1531,5 +1541,15 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'onboarding.nameLabel':     'Nome (opzionale)',
     'onboarding.namePlaceholder': 'Come ti chiami?',
     'onboarding.loading':       'Caricamento...',
+
+    'insights.reliability.precise':  'Preciso',
+    'insights.reliability.approx':   'Approssimativo',
+    'insights.reliability.none':     'Non loggato',
+    'insights.reliability.auto':     'auto',
+    'insights.reliability.tooltip':  'Quanto è preciso il diario alimentare di oggi (usato dagli insight)',
+    'insights.card.title':   'Insight del giorno',
+    'insights.card.seeAll':  'Vedi tutti',
+    'insights.card.lowData': 'Sto iniziando a conoscerti — logga ancora qualche giorno e qui appariranno i tuoi pattern.',
+    'insights.card.error':   'Insight non disponibili.',
   },
 };
