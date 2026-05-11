@@ -122,7 +122,7 @@ function computeWorkoutStats(db, { from, to, today: todayStr }) {
            COALESCE(MAX(CASE WHEN wes.reps IS NOT NULL AND wes.weight_kg IS NOT NULL THEN wes.weight_kg * (1 + wes.reps / 30.0) ELSE NULL END), 0) AS best_est_1rm_kg
     FROM workout_sessions s
     JOIN workout_exercise_sets wes ON wes.session_id = s.id
-    JOIN exercises e ON e.id = wes.exercise_id
+    JOIN exercise_types e ON e.id = wes.exercise_id
     WHERE s.date >= ? AND s.date <= ?
     GROUP BY e.id, e.name
     ORDER BY total_volume_kg DESC

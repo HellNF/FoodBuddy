@@ -6,7 +6,7 @@ function makeDb() {
   db.exec(`
     CREATE TABLE workout_sessions (id INTEGER PRIMARY KEY, date TEXT, plan_id INTEGER, started_at TEXT, ended_at TEXT, duration_min INTEGER DEFAULT 0, calories_burned INTEGER DEFAULT 0, perceived_effort INTEGER, note TEXT, created_at TEXT);
     CREATE TABLE workout_exercise_sets (id INTEGER PRIMARY KEY, session_id INTEGER, exercise_id INTEGER, set_idx INTEGER, reps INTEGER, weight_kg REAL, distance_km REAL, duration_sec INTEGER, rest_sec INTEGER);
-    CREATE TABLE exercises (id INTEGER PRIMARY KEY, name TEXT, date TEXT, duration_min REAL DEFAULT 0, calories_burned REAL DEFAULT 0);
+    CREATE TABLE exercise_types (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, met_value REAL DEFAULT 5.0, category TEXT DEFAULT 'other');
   `);
   return db;
 }
@@ -21,7 +21,7 @@ function insertSession(db, { date, duration_min = 30, calories_burned = 100 }) {
 
 // Helper: insert an exercise
 function insertExercise(db, { name }) {
-  const r = db.prepare('INSERT INTO exercises (name) VALUES (?)').run(name);
+  const r = db.prepare('INSERT INTO exercise_types (name) VALUES (?)').run(name);
   return r.lastInsertRowid;
 }
 
