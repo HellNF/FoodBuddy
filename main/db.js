@@ -330,6 +330,12 @@ function initDb() {
     "UPDATE log SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
     "UPDATE template_items SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
     "ALTER TABLE foods ADD COLUMN image_url TEXT",
+    `CREATE TABLE IF NOT EXISTS food_day_reliability (
+      date TEXT PRIMARY KEY,
+      level TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'manual',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
