@@ -327,6 +327,8 @@ export const api = {
     getCurrentStreak: (habit_id: number) => invoke<{ streak: number }>('habits:getCurrentStreak', { habit_id }),
     getMonthData:     (habit_id: number, year: number, month: number) => invoke<{ dates: string[] }>('habits:getMonthData', { habit_id, year, month }),
     getStats:         (habit_id: number) => invoke<HabitStats>('habits:getStats', { habit_id }),
+    useFreeze:        (habit_id: number, date: string) => invoke<{ ok: boolean; error?: string }>('habits:useFreeze', { habit_id, date }),
+    getFreezeInfo:    (habit_id: number, date: string) => invoke<{ used_this_week: boolean; freeze_date: string | null }>('habits:getFreezeInfo', { habit_id, date }),
   },
 
   focus: {

@@ -724,6 +724,10 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.onTrack':         'On track',
     'habits.avgRate30d':      'Avg rate (30d)',
     'habits.completionRate30d': '30d completion',
+    'habits.freezeBtn':        'Freeze (save streak)',
+    'habits.freezeUsed':       'Streak saved with freeze!',
+    'habits.freezeAlreadyUsed':'Freeze already used this week',
+    'habits.freezeError':      'Could not use freeze',
 
     'nav.focus':          'Focus',
     'focus.eyebrow':      'FOCUS',
@@ -1601,6 +1605,10 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.onTrack':         'In carreggiata',
     'habits.avgRate30d':      'Media completamento (30g)',
     'habits.completionRate30d': 'Completamento 30g',
+    'habits.freezeBtn':        'Jolly (salva streak)',
+    'habits.freezeUsed':       'Streak salvata con il jolly!',
+    'habits.freezeAlreadyUsed':'Jolly già usato questa settimana',
+    'habits.freezeError':      'Impossibile usare il jolly',
 
     'nav.focus':          'Focus',
     'focus.eyebrow':      'FOCUS',

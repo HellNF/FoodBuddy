@@ -775,6 +775,15 @@ function initDb() {
         UNIQUE(habit_id, date)
       );
 
+      CREATE TABLE IF NOT EXISTS habit_freeze_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        habit_id INTEGER NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        week TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(habit_id, week)
+      );
+
       CREATE TABLE IF NOT EXISTS mood_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT UNIQUE NOT NULL,

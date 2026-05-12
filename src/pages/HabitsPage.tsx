@@ -184,6 +184,7 @@ export default function HabitsPage() {
   const [weekStats, setWeekStats] = useState<HabitWeekStat[]>([]);
   const [habitStats, setHabitStats] = useState<Record<number, HabitStats>>({});
   const [checkedToday, setCheckedToday] = useState<Set<number>>(new Set());
+  const [freezeInfo, setFreezeInfo] = useState<Record<number, { used_this_week: boolean; freeze_date: string | null }>>({});
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -224,15 +225,27 @@ export default function HabitsPage() {
     } catch {}
   }, []);
 
+  const loadFreezeInfo = useCallback(async (list: Habit[]) => {
+    try {
+      const results = await Promise.all(
+        list.map(h => api.habits.getFreezeInfo(h.id, todayStr).then(r => ({ id: h.id, info: r })))
+      );
+      const map: Record<number, { used_this_week: boolean; freeze_date: string | null }> = {};
+      results.forEach(r => { map[r.id] = r.info; });
+      setFreezeInfo(map);
+    } catch {}
+  }, [todayStr]);
+
 
   useEffect(() => {
     const init = async () => {
       const list = await loadHabits();
       await loadWeekStats();
       await loadHabitStats(list);
+      await loadFreezeInfo(list);
     };
     init();
-  }, [loadHabits, loadWeekStats, loadHabitStats]);
+  }, [loadHabits, loadWeekStats, loadHabitStats, loadFreezeInfo]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
   async function handleToggleToday(habit: Habit) {
@@ -263,6 +276,24 @@ export default function HabitsPage() {
         return next;
       });
     }
+  }
+
+  async function handleUseFreeze(habit: Habit) {
+    // Freeze for yesterday (most common use: missed yesterday, streak at risk)
+    const yesterday = new Date(todayStr + 'T00:00:00');
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    try {
+      const res = await api.habits.useFreeze(habit.id, yesterdayStr);
+      if (res.ok) {
+        showToast(t('habits.freezeUsed'), 'success');
+        const list = await loadHabits();
+        await loadHabitStats(list);
+        await loadFreezeInfo(list);
+      } else {
+        showToast(res.error === 'already_used' ? t('habits.freezeAlreadyUsed') : t('habits.freezeError'), 'error');
+      }
+    } catch {}
   }
 
   async function handleCreate(data: { name: string; icon: string; color: string; target_per_week: number }) {
@@ -468,6 +499,24 @@ export default function HabitsPage() {
                           best={stats.longest_streak}
                           emoji="🔥"
                         />
+                      )}
+
+                      {/* Freeze jolly — show when not checked today and freeze not used */}
+                      {!isChecked && freezeInfo[habit.id] && !freezeInfo[habit.id].used_this_week && (
+                        <button
+                          type="button"
+                          onClick={() => handleUseFreeze(habit)}
+                          title={t('habits.freezeBtn')}
+                          style={{
+                            padding: '3px 8px', borderRadius: 6,
+                            border: '1px solid #3b82f6',
+                            background: 'transparent',
+                            color: '#3b82f6',
+                            fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                            fontFamily: 'var(--font-body)',
+                            flexShrink: 0,
+                          }}
+                        >❄️</button>
                       )}
 
                       {/* Check toggle */}

@@ -135,6 +135,34 @@ function registerHabitsIpc() {
     streak: computeCurrentStreak(getDb(), habit_id, today()),
   }));
 
+  // ── Freeze: use a jolly for a missed day ────────────────────────────────────
+  ipcMain.handle('habits:useFreeze', (_, { habit_id, date }) => {
+    const db = getDb();
+    const week = isoWeek(date);
+    const existing = db.prepare(
+      'SELECT id FROM habit_freeze_logs WHERE habit_id = ? AND week = ?'
+    ).get(habit_id, week);
+    if (existing) return { ok: false, error: 'already_used' };
+    // Must not be already checked
+    const checked = db.prepare(
+      'SELECT id FROM habit_logs WHERE habit_id = ? AND date = ?'
+    ).get(habit_id, date);
+    if (checked) return { ok: false, error: 'already_checked' };
+    db.prepare(
+      'INSERT INTO habit_freeze_logs (habit_id, date, week) VALUES (?, ?, ?)'
+    ).run(habit_id, date, week);
+    return { ok: true };
+  });
+
+  ipcMain.handle('habits:getFreezeInfo', (_, { habit_id, date }) => {
+    const db = getDb();
+    const week = isoWeek(date);
+    const row = db.prepare(
+      'SELECT date FROM habit_freeze_logs WHERE habit_id = ? AND week = ?'
+    ).get(habit_id, week);
+    return { used_this_week: !!row, freeze_date: row?.date ?? null };
+  });
+
   // ── Month data: dates checked in a given month ──────────────────────────────
   ipcMain.handle('habits:getMonthData', (_, { habit_id, year, month }) => {
     // month is 1-based
@@ -157,6 +185,15 @@ function registerHabitsIpc() {
   );
 }
 
+// ── ISO week helper (YYYY-WW) ────────────────────────────────────────────────
+function isoWeek(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const wn = 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return `${d.getFullYear()}-${String(wn).padStart(2, '0')}`;
+}
+
 // ── Pure helper: offset a date string by n days ─────────────────────────────
 function offsetDate(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -171,9 +208,14 @@ function computeCurrentStreak(db, habitId, todayDate) {
     .all(habitId)
     .map(r => r.date);
 
-  if (!rows.length) return 0;
+  const freezeRows = db
+    .prepare('SELECT date FROM habit_freeze_logs WHERE habit_id = ?')
+    .all(habitId)
+    .map(r => r.date);
 
-  const dateSet = new Set(rows);
+  if (!rows.length && !freezeRows.length) return 0;
+
+  const dateSet = new Set([...rows, ...freezeRows]);
   let streak = 0;
   let d = new Date(todayDate + 'T00:00:00');
 
