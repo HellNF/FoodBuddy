@@ -36,6 +36,8 @@ const registerMoodIpc            = require('./ipc/mood.ipc');
 const registerWorkoutsIpc        = require('./ipc/workouts.ipc');
 const { registerGamificationIpc } = require('./ipc/gamification.ipc');
 const registerInsightsIpc         = require('./ipc/insights.ipc');
+const registerMealSuggestionsIpc  = require('./ipc/meal_suggestions.ipc');
+const { startMealReminders, stopMealReminders } = require('./lib/meal_reminders');
 
 let mainWindow;
 
@@ -129,8 +131,11 @@ app.whenReady().then(async () => {
   registerWorkoutsIpc();
   registerGamificationIpc();
   registerInsightsIpc();
+  registerMealSuggestionsIpc();
 
   createWindow();
+
+  startMealReminders(() => mainWindow);
 
   // Global shortcut: focus quick-add from anywhere on the desktop
   globalShortcut.register('CommandOrControl+N', () => {
@@ -151,5 +156,6 @@ app.on('activate', () => {
 });
 
 app.on('will-quit', () => {
+  stopMealReminders();
   globalShortcut.unregisterAll();
 });

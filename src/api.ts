@@ -13,6 +13,7 @@ import type {
   AppNotification, DismissedNotification,
   SleepEntry, SleepTrendPoint,
   Task, TaskCompletionRate,
+  MealSuggestionsResult,
   Habit, HabitWeekStat,
   FocusSession, FocusDayStats, FocusWeekPoint,
   MoodEntry, MoodTrendPoint,
@@ -260,6 +261,10 @@ export const api = {
     setOpenedDays:    (batch_id: number, days: number) => invoke<{ ok: boolean }>('pantry:setOpenedDays', { batch_id, days }),
     resolveResidual:  (food_id: number, overflow_g: number, mode: 'residual' | 'new_open', pantry_id?: number) =>
       invoke<{ ok: boolean; events: DeductionEvent[] }>('pantry:resolveResidual', { food_id, overflow_g, mode, pantry_id }),
+  },
+
+  meals: {
+    getSuggestions: () => invoke<MealSuggestionsResult>('meals:getSuggestions'),
   },
 
   actionLog: {

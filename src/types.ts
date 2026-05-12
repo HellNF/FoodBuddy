@@ -308,6 +308,22 @@ export interface Settings {
   insights_window_days?: number;
 }
 
+export interface MealSuggestion {
+  food_id: number;
+  name: string;
+  calories: number;
+  suggestedGrams: number;
+  portionKcal: number;
+  source: 'pantry' | 'frequent';
+  expiry: string | null;
+}
+
+export interface MealSuggestionsResult {
+  remainingKcal: number;
+  mealSlot: 'Breakfast' | 'Lunch' | 'Dinner' | 'AfternoonSnack';
+  suggestions: MealSuggestion[];
+}
+
 export interface WeightEntry {
   id: number;
   date: string;

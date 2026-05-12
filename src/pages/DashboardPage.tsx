@@ -36,12 +36,14 @@ import MoodCard from '../components/dashboard/MoodCard';
 import WorkoutCard from '../components/dashboard/WorkoutCard';
 import ReliabilityPill from '../components/dashboard/ReliabilityPill';
 import InsightCard from '../components/dashboard/InsightCard';
+import MealSuggestionCard from '../components/dashboard/MealSuggestionCard';
 import DeductionEventModal from '../components/DeductionEventModal';
 import {
   MEAL_ORDER,
   type LogEntry, type Food, type Recipe, type RecipeIngredient, type Meal,
   type WaterEntry, type SupplementDay, type FrequentFood, type WeightEntry,
   type DailyEnergy, type Exercise,
+  type MealSuggestion, type MealSuggestionsResult,
 } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 
@@ -179,8 +181,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [confirmAllOpen, setConfirmAllOpen] = useState(false);
 
   // ── Widget reorder (drag-and-drop) ────────────────────────────────────────
-  const DEFAULT_WIDGET_ORDER = ['gamification','hero','tasks_habits','diary','lifestyle','workout','insights','secondary','collapsibles'];
+  const DEFAULT_WIDGET_ORDER = ['gamification','hero','tasks_habits','diary','meal_suggest','lifestyle','workout','insights','secondary','collapsibles'];
   const [widgetOrder, setWidgetOrder] = useState<string[]>(DEFAULT_WIDGET_ORDER);
+  const [mealSuggest, setMealSuggest] = useState<MealSuggestionsResult | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -190,8 +193,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       if (stored) {
         const parsed = JSON.parse(stored) as string[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = [...DEFAULT_WIDGET_ORDER.filter(id => !parsed.includes(id)), ...parsed];
-          setWidgetOrder(merged.filter(id => DEFAULT_WIDGET_ORDER.includes(id)));
+          // Keep saved order, append any new DEFAULT ids not yet saved, drop obsolete ones
+          const merged = [...parsed.filter(id => DEFAULT_WIDGET_ORDER.includes(id)), ...DEFAULT_WIDGET_ORDER.filter(id => !parsed.includes(id))];
+          setWidgetOrder(merged);
         }
       }
     } catch {}
@@ -230,6 +234,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     setRecipes(rcs);
     setNote(nd.note || '');
     setFrequent(freq);
+    // Non-blocking: meal suggestions depend on consumed kcal and pantry state
+    api.meals.getSuggestions().then(setMealSuggest).catch(() => {});
   }, [dateStr]);
 
   useEffect(() => {
@@ -429,6 +435,13 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       : (food.piece_grams || 100);
     const result = await api.log.add({ food_id: food.id, grams, meal: 'AfternoonSnack', date: dateStr, status: logStatus, pantry_id: logPantryId });
     showToast(t('dash.quickLogToast', { name: food.name, grams }), 'success');
+    if (result.events?.length) pushDeduction(result.events);
+    load();
+  }
+
+  async function logSuggestion(s: MealSuggestion, mealSlot: string) {
+    const result = await api.log.add({ food_id: s.food_id, grams: s.suggestedGrams, meal: mealSlot as Meal, date: dateStr, status: logStatus, pantry_id: logPantryId });
+    showToast(t('dash.quickLogToast', { name: s.name, grams: s.suggestedGrams }), 'success');
     if (result.events?.length) pushDeduction(result.events);
     load();
   }
@@ -731,6 +744,15 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                     onCopyDay={handleCopyDay}
                   />
                 </div>
+              </DragSection>
+            );
+            if (wid === 'meal_suggest') return (
+              <DragSection key={wid} {...dragProps}>
+                <MealSuggestionCard
+                  data={mealSuggest}
+                  onLog={logSuggestion}
+                  onNavigateFoods={() => navigate('foods')}
+                />
               </DragSection>
             );
             if (wid === 'lifestyle') return (
