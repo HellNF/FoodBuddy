@@ -59,7 +59,7 @@ const DEFAULT_ORDER: NavItem[] = [
   { page: 'net',           labelKey: 'nav.net',           group: 'plan' },
   { page: 'compare',       labelKey: 'nav.compare',       group: 'plan' },
   { page: 'supplements',   labelKey: 'nav.supplements',   group: 'health' },
-  { page: 'exercise',      labelKey: 'nav.exercise',      group: 'health' },
+  { page: 'exercise',      labelKey: 'nav.exercise',      group: 'training' },
   { page: 'measurements',  labelKey: 'nav.measurements',  group: 'health' },
   { page: 'weight',        labelKey: 'nav.body',          group: 'health' },
   { page: 'goals',         labelKey: 'nav.goals',         group: 'health' },
@@ -79,7 +79,8 @@ const GROUPS = [
   { id: 'track',     label: 'Diario' },
   { id: 'lifestyle', label: 'Lifestyle' },
   { id: 'plan',      label: 'Pianificazione' },
-  { id: 'health',    label: 'Salute' },
+  { id: 'training',  label: 'Allenamento' },
+  { id: 'health',    label: 'Profilo' },
   { id: 'system',    label: 'Sistema' },
 ];
 
