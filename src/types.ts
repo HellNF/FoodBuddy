@@ -147,8 +147,15 @@ export interface ExerciseType {
 export const MUSCLE_GROUPS = [
   'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms',
   'quadriceps', 'hamstrings', 'glutes', 'calves', 'abs', 'obliques',
-  'full_body',
+  'traps', 'adductors', 'full_body',
 ] as const;
+
+export interface MuscleActivity {
+  muscle: string;
+  sets: number;
+  last_date: string | null;
+  score: number;
+}
 
 export const EQUIPMENT_OPTIONS = [
   'barbell', 'dumbbell', 'kettlebell', 'cable', 'machine',

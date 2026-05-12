@@ -338,6 +338,53 @@ function registerWorkoutsIpc() {
   });
 
   // ── workouts:deleteSession ────────────────────────────────────────────────
+  ipcMain.handle('workouts:getMuscleActivity', (_, { from, to } = {}) => {
+    const db = getDb();
+    const map = new Map(); // muscle -> { sets, lastDate, score }
+
+    const windowDays = Math.round((new Date(to) - new Date(from)) / 86400000) + 1;
+
+    function addContrib(mg, date, count) {
+      const daysAgo = Math.round((new Date(to) - new Date(date)) / 86400000);
+      // Linear recency weight: today=1, last day of window~0 (heuristic)
+      const w = Math.max(0, (windowDays - daysAgo) / windowDays);
+      for (const token of mg.split(',').map(s => s.trim()).filter(Boolean)) {
+        const prev = map.get(token) ?? { sets: 0, lastDate: null, score: 0 };
+        map.set(token, {
+          sets: prev.sets + count,
+          lastDate: !prev.lastDate || date > prev.lastDate ? date : prev.lastDate,
+          score: prev.score + count * w,
+        });
+      }
+    }
+
+    // Sessions model
+    for (const row of db.prepare(`
+      SELECT et.muscle_groups AS mg, ws.date AS d
+      FROM workout_exercise_sets s
+      JOIN workout_sessions ws ON ws.id = s.session_id
+      JOIN exercise_types et ON et.id = s.exercise_id
+      WHERE ws.date >= ? AND ws.date <= ? AND et.muscle_groups <> ''
+    `).all(from, to)) {
+      addContrib(row.mg, row.d, 1);
+    }
+
+    // Legacy model (exclude rows already counted via sessions)
+    for (const row of db.prepare(`
+      SELECT et.muscle_groups AS mg, e.date AS d,
+             MAX(1, (SELECT COUNT(*) FROM exercise_sets es WHERE es.exercise_id = e.id)) AS nsets
+      FROM exercises e
+      JOIN exercise_types et ON et.name = e.type
+      WHERE e.date >= ? AND e.date <= ? AND et.muscle_groups <> ''
+        AND (e.workout_session_id IS NULL)
+    `).all(from, to)) {
+      addContrib(row.mg, row.d, row.nsets);
+    }
+
+    return Array.from(map, ([muscle, v]) => ({ muscle, ...v }))
+      .sort((a, b) => b.score - a.score);
+  });
+
   ipcMain.handle('workouts:deleteSession', (_, { id } = {}) => {
     const db = getDb();
     const row = db.prepare('SELECT * FROM workout_sessions WHERE id = ?').get(id);

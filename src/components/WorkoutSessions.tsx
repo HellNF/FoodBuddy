@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
+import { useSettings } from '../hooks/useSettings';
 import { useAchievementToast } from '../hooks/useAchievementToast';
-import type { WorkoutSession, WorkoutExerciseSet, ExerciseType, WorkoutStats } from '../types';
+import type { WorkoutSession, WorkoutExerciseSet, ExerciseType, WorkoutStats, MuscleActivity } from '../types';
 import { cardOuter, eyebrow, pillPrimary, pillGhost, tinyInput } from '../lib/fbUI';
+import { fbCard } from '../lib/fbStyles';
 import ExerciseSearch from './ExerciseSearch';
-import { addDays, formatShortDate } from '../lib/dateUtil';
+import { addDays, formatShortDate, today as todayFn } from '../lib/dateUtil';
 import StreakBadge from './StreakBadge';
 import WeeklySummaryCard from './WeeklySummaryCard';
 import BarChartCard from './BarChartCard';
 import ModuleInsightsCard from './ModuleInsightsCard';
+import BodyMuscleMap from './BodyMuscleMap';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -412,11 +415,14 @@ function SessionCard({ session, onDelete }: SessionCardProps) {
 
 export default function WorkoutSessions() {
   const { t } = useT();
+  const { settings } = useSettings();
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [workoutStats, setWorkoutStats] = useState<WorkoutStats | null>(null);
+  const [muscleActivity, setMuscleActivity] = useState<MuscleActivity[]>([]);
+  const [muscleWindow, setMuscleWindow] = useState(7);
 
   async function load() {
     const [day, active] = await Promise.all([
@@ -433,6 +439,12 @@ export default function WorkoutSessions() {
   }
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    api.workouts.getMuscleActivity(addDays(todayFn(), -(muscleWindow - 1)), todayFn())
+      .then(setMuscleActivity)
+      .catch(() => {});
+  }, [muscleWindow]);
 
   async function startSession() {
     setStarting(true);
@@ -485,6 +497,37 @@ export default function WorkoutSessions() {
       {completedSessions.map(s => (
         <SessionCard key={s.id} session={s} onDelete={() => deleteSession(s.id)} />
       ))}
+
+      {/* ── Muscle map ─────────────────────────────────────────────────── */}
+      <div style={{ ...fbCard, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--fb-text)' }}>
+            {t('workouts.muscleMap.title')}
+          </span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {([7, 14, 30] as const).map(w => (
+              <button
+                key={w}
+                onClick={() => setMuscleWindow(w)}
+                style={{
+                  padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  border: `1.5px solid ${muscleWindow === w ? 'var(--fb-amber)' : 'var(--fb-border)'}`,
+                  background: muscleWindow === w ? 'color-mix(in srgb, var(--fb-amber) 12%, var(--fb-card))' : 'transparent',
+                  color: muscleWindow === w ? 'var(--fb-amber)' : 'var(--fb-text-3)',
+                  cursor: 'pointer',
+                }}
+              >
+                {w === 7 ? t('workouts.muscleMap.window7') : w === 14 ? t('workouts.muscleMap.window14') : t('workouts.muscleMap.window30')}
+              </button>
+            ))}
+          </div>
+        </div>
+        <BodyMuscleMap
+          activity={muscleActivity}
+          sex={settings.user_sex ?? 'unspecified'}
+          windowDays={muscleWindow}
+        />
+      </div>
 
       {/* ── Streak + Weekly Summary ─────────────────────────────────────── */}
       {workoutStats && (

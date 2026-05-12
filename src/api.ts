@@ -17,7 +17,7 @@ import type {
   Habit, HabitWeekStat,
   FocusSession, FocusDayStats, FocusWeekPoint,
   MoodEntry, MoodTrendPoint,
-  WorkoutSession, WorkoutExerciseSet, WorkoutWeekPoint,
+  WorkoutSession, WorkoutExerciseSet, WorkoutWeekPoint, MuscleActivity,
   Achievement, UserLevel, PointEvent,
   SectionStreak,
   InsightsResult, DayReliabilityLevel,
@@ -378,6 +378,7 @@ export const api = {
     deleteSession:   (id: number) => invoke<{ ok: boolean }>('workouts:deleteSession', { id }),
     getStats:        (from: string, to: string) => invoke<WorkoutStats>('workouts:getStats', { from, to }),
     saveAsTemplate:  (data: { session_id: number; name: string }) => invoke<{ ok: boolean; id?: number; error?: string }>('workouts:saveAsTemplate', data),
+    getMuscleActivity: (from: string, to: string) => invoke<MuscleActivity[]>('workouts:getMuscleActivity', { from, to }),
   },
 
   notifications: {
