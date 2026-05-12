@@ -372,6 +372,7 @@ export const api = {
     getWeekStats:    (from: string, to: string) => invoke<WorkoutWeekPoint[]>('workouts:getWeekStats', { from, to }),
     deleteSession:   (id: number) => invoke<{ ok: boolean }>('workouts:deleteSession', { id }),
     getStats:        (from: string, to: string) => invoke<WorkoutStats>('workouts:getStats', { from, to }),
+    saveAsTemplate:  (data: { session_id: number; name: string }) => invoke<{ ok: boolean; id?: number; error?: string }>('workouts:saveAsTemplate', data),
   },
 
   notifications: {

@@ -297,6 +297,46 @@ function registerWorkoutsIpc() {
     })
   );
 
+  // ── workouts:saveAsTemplate ───────────────────────────────────────────────
+  ipcMain.handle('workouts:saveAsTemplate', (_, { session_id, name } = {}) => {
+    const db = getDb();
+    const sets = db.prepare(
+      'SELECT * FROM workout_exercise_sets WHERE session_id = ? ORDER BY set_idx ASC'
+    ).all(session_id);
+    if (!sets.length) return { ok: false, error: 'no_sets' };
+
+    // Deduplicate exercises by exercise_id, preserving first-occurrence order
+    const seen = new Set();
+    const exercises = [];
+    for (const s of sets) {
+      if (s.exercise_id && !seen.has(s.exercise_id)) {
+        seen.add(s.exercise_id);
+        const repsForEx = sets.filter(x => x.exercise_id === s.exercise_id).map(x => x.reps).filter(Boolean);
+        const weightsForEx = sets.filter(x => x.exercise_id === s.exercise_id).map(x => x.weight_kg).filter(Boolean);
+        exercises.push({
+          exercise_type_id: s.exercise_id,
+          sort_order: exercises.length,
+          target_sets: sets.filter(x => x.exercise_id === s.exercise_id).length,
+          target_reps: repsForEx.length ? Math.round(repsForEx.reduce((a, b) => a + b, 0) / repsForEx.length) : null,
+          target_weight_kg: weightsForEx.length ? Math.max(...weightsForEx) : null,
+        });
+      }
+    }
+
+    return db.transaction(() => {
+      const { lastInsertRowid } = db.prepare(
+        'INSERT INTO workout_plans (name, description) VALUES (?, ?)'
+      ).run(name || 'Template', null);
+      const ins = db.prepare(
+        'INSERT INTO workout_plan_exercises (plan_id, exercise_type_id, sort_order, target_sets, target_reps, target_duration_min, target_weight_kg, rest_sec, is_optional, superset_group, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      for (const ex of exercises) {
+        ins.run(lastInsertRowid, ex.exercise_type_id, ex.sort_order, ex.target_sets, ex.target_reps, null, ex.target_weight_kg, null, 0, null, null);
+      }
+      return { ok: true, id: lastInsertRowid };
+    })();
+  });
+
   // ── workouts:deleteSession ────────────────────────────────────────────────
   ipcMain.handle('workouts:deleteSession', (_, { id } = {}) => {
     const db = getDb();

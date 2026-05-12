@@ -317,6 +317,28 @@ interface SessionCardProps {
 
 function SessionCard({ session, onDelete }: SessionCardProps) {
   const { t } = useT();
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [showTemplateInput, setShowTemplateInput] = useState(false);
+  const [savedMsg, setSavedMsg] = useState('');
+
+  const hasSets = session.sets && session.sets.length > 0;
+
+  async function handleSaveTemplate() {
+    if (!templateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      const res = await api.workouts.saveAsTemplate({ session_id: session.id, name: templateName.trim() });
+      if (res.ok) {
+        setSavedMsg(t('workouts.templateSaved'));
+        setShowTemplateInput(false);
+        setTemplateName('');
+        setTimeout(() => setSavedMsg(''), 3000);
+      }
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
 
   return (
     <div style={cardOuter}>
@@ -350,6 +372,39 @@ function SessionCard({ session, onDelete }: SessionCardProps) {
         <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>
           {session.sets.length} set
         </div>
+      )}
+
+      {hasSets && !showTemplateInput && !savedMsg && (
+        <button
+          onClick={() => setShowTemplateInput(true)}
+          style={{ background: 'none', border: '1px solid var(--fb-border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, color: 'var(--fb-text-2)', cursor: 'pointer', alignSelf: 'flex-start', fontFamily: 'var(--font-body)' }}
+        >
+          📋 {t('workouts.saveAsTemplate')}
+        </button>
+      )}
+
+      {hasSets && showTemplateInput && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder={t('workouts.templateNamePlaceholder')}
+            value={templateName}
+            onChange={e => setTemplateName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSaveTemplate(); if (e.key === 'Escape') { setShowTemplateInput(false); setTemplateName(''); } }}
+            style={{ ...tinyInput, flex: '1 1 120px' }}
+            autoFocus
+          />
+          <button onClick={handleSaveTemplate} disabled={savingTemplate || !templateName.trim()} style={pillPrimary}>
+            {t('common.save')}
+          </button>
+          <button onClick={() => { setShowTemplateInput(false); setTemplateName(''); }} style={pillGhost}>
+            {t('common.cancel')}
+          </button>
+        </div>
+      )}
+
+      {savedMsg && (
+        <div style={{ fontSize: 12, color: 'var(--fb-accent)', fontWeight: 600 }}>{savedMsg}</div>
       )}
     </div>
   );
