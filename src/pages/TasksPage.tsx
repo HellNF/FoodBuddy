@@ -10,6 +10,7 @@ import BarChartCard from '../components/BarChartCard';
 import StreakBadge from '../components/StreakBadge';
 import WeeklySummaryCard from '../components/WeeklySummaryCard';
 import ModuleInsightsCard from '../components/ModuleInsightsCard';
+import EmptyState from '../components/EmptyState';
 import type { Task, TasksStats } from '../types';
 
 // ── Priority colours ─────────────────────────────────────────────────────────
@@ -90,6 +91,7 @@ export default function TasksPage() {
 
   const dragTaskIdRef = useRef<number | null>(null);
   const dragOverTaskIdRef = useRef<number | null>(null);
+  const addInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -169,10 +171,10 @@ export default function TasksPage() {
     try {
       const { count } = await api.tasks.rolloverFromYesterday(date) as { count: number };
       if (count > 0) {
-        showToast(`${count} task${count > 1 ? 's' : ''} rolled over`, 'success');
+        showToast(t('tasks.rolledOver', { n: count, s: count > 1 ? 's' : '', i: count > 1 ? 'i' : 'o' }), 'success');
         await loadTasks();
       } else {
-        showToast('Nessun task da ieri', 'info');
+        showToast(t('common.noTasksYesterday'), 'info');
       }
     } catch { /* silent */ }
   }
@@ -297,7 +299,7 @@ export default function TasksPage() {
             type="button"
             onClick={() => setDate(today())}
             style={{ ...fbBtnGhost, fontSize: 11, padding: '4px 10px', marginLeft: 4 }}
-          >Oggi</button>
+          >{t('nav.today')}</button>
         )}
       </div>
 
@@ -339,18 +341,20 @@ export default function TasksPage() {
       {/* ── Task list ───────────────────────────────────────────────────────── */}
       <section style={cardOuter}>
         {tasks.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 0' }}>
-            <div style={{ color: 'var(--fb-text-3)', fontSize: 13, fontStyle: 'italic' }}>
-              {t('tasks.empty')}
-            </div>
-            <button
-              type="button"
-              onClick={handleRollover}
-              style={{ ...fbBtnGhost, fontSize: 12, padding: '6px 14px' }}
-            >
-              {t('tasks.rollover')}
-            </button>
-          </div>
+          <EmptyState
+            compact
+            icon="📋"
+            title={t('tasks.empty')}
+            description={t('tasks.emptyDesc')}
+            action={{
+              label: t('tasks.addFirst'),
+              onClick: () => {
+                addInputRef.current?.focus();
+                addInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              },
+            }}
+            secondaryAction={{ label: t('tasks.rollover'), onClick: handleRollover }}
+          />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {visibleTasks.map((task) => (
@@ -482,10 +486,11 @@ export default function TasksPage() {
       {/* ── Add task form ────────────────────────────────────────────────────── */}
       <section style={cardOuter}>
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fb-text-2)', letterSpacing: 0.2 }}>
-          Nuovo task
+          {t('common.newTask')}
         </span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
+            ref={addInputRef}
             type="text"
             placeholder={t('tasks.addPlaceholder')}
             value={newTitle}

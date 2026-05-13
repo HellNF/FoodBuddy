@@ -14,6 +14,7 @@ import type { MoodEntry, MoodTrendPoint, MoodStats } from '../types';
 import StreakBadge from '../components/StreakBadge';
 import WeeklySummaryCard from '../components/WeeklySummaryCard';
 import ModuleInsightsCard from '../components/ModuleInsightsCard';
+import EmptyState from '../components/EmptyState';
 
 // ── Rating picker helpers ────────────────────────────────────────────────────
 
@@ -387,9 +388,12 @@ export default function JournalPage() {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div style={{ color: 'var(--fb-text-3)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>
-            {t('journal.empty')}
-          </div>
+          <EmptyState
+            compact
+            icon="📈"
+            title={t('journal.empty')}
+            description={t('journal.emptyDesc')}
+          />
         )}
 
         {/* Legend */}

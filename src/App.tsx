@@ -37,6 +37,7 @@ import Nav from './components/Nav';
 import Onboarding from './components/Onboarding';
 import MorningCheckin from './components/MorningCheckin';
 import EveningCheckin from './components/EveningCheckin';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // ── Inner app (has access to contexts) ───────────────────────────────────────
 
@@ -104,7 +105,11 @@ function AppInner() {
   return (
     <div className="flex h-screen overflow-hidden bg-bg text-text">
       <Nav activePage={page} />
-      <main className="flex-1 overflow-y-auto">
+      <main
+        key={page}
+        className="flex-1 overflow-y-auto"
+        style={{ animation: 'fb-overlay-in 160ms var(--ease-out-strong) both' }}
+      >
         {page === 'dashboard'    && <DashboardPage />}
         {page === 'exercise'     && <ExercisePage />}
         {page === 'net'          && <NetPage />}
@@ -139,12 +144,14 @@ function AppInner() {
 
 export default function App() {
   return (
-    <SettingsProvider>
-      <ToastProvider>
-        <NavigationProvider>
-          <AppInner />
-        </NavigationProvider>
-      </ToastProvider>
-    </SettingsProvider>
+    <ErrorBoundary>
+      <SettingsProvider>
+        <ToastProvider>
+          <NavigationProvider>
+            <AppInner />
+          </NavigationProvider>
+        </ToastProvider>
+      </SettingsProvider>
+    </ErrorBoundary>
   );
 }

@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { api } from '../api';
 import { useNavigate } from '../hooks/useNavigate';
 import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
+import { useToast } from './Toast';
 import { getThisMonday } from '../lib/dateUtil';
-import type { PageName } from '../types';
+import { subscribeFocus, isFocusLocked } from '../lib/focusLock';
+import type { PageName, UserLevel } from '../types';
 import NotificationBell from './NotificationBell';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -76,12 +79,12 @@ const DEFAULT_ORDER: NavItem[] = [
 ];
 
 const GROUPS = [
-  { id: 'track',     label: 'Diario' },
-  { id: 'lifestyle', label: 'Lifestyle' },
-  { id: 'plan',      label: 'Pianificazione' },
-  { id: 'training',  label: 'Allenamento' },
-  { id: 'health',    label: 'Profilo' },
-  { id: 'system',    label: 'Sistema' },
+  { id: 'track',     labelKey: 'nav.group.track' },
+  { id: 'lifestyle', labelKey: 'nav.group.lifestyle' },
+  { id: 'training',  labelKey: 'nav.group.training' },
+  { id: 'plan',      labelKey: 'nav.group.plan' },
+  { id: 'health',    labelKey: 'nav.group.health' },
+  { id: 'system',    labelKey: 'nav.group.system' },
 ];
 
 const STORAGE_KEY = 'nav_order';
@@ -117,15 +120,41 @@ function saveHidden(hidden: Set<PageName>) {
   localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden]));
 }
 
-// ── Drag handle ───────────────────────────────────────────────────────────────
+// ── Edit affordance: small arrow button ──────────────────────────────────────
 
-function DragHandle() {
+function ArrowBtn({ dir, disabled, onClick, label, dataMoveFocus }: {
+  dir: 'up' | 'down';
+  disabled: boolean;
+  onClick: () => void;
+  label: string;
+  dataMoveFocus?: boolean;
+}) {
+  const path = dir === 'up' ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6';
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.35, flexShrink: 0 }}>
-      <circle cx="9" cy="6"  r="1.5" /><circle cx="15" cy="6"  r="1.5" />
-      <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-      <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
-    </svg>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={`${label} ${dir === 'up' ? '↑' : '↓'}`}
+      title={dir === 'up' ? 'Sposta su' : 'Sposta giù'}
+      data-move-focus={dataMoveFocus ? 'true' : undefined}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 22, height: 22, borderRadius: 6,
+        border: 0, background: 'transparent',
+        color: disabled ? 'var(--fb-text-3)' : 'var(--fb-text-2)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
+        flexShrink: 0,
+      }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.color = 'var(--fb-text)'; }}
+      onMouseLeave={e => { if (!disabled) e.currentTarget.style.color = 'var(--fb-text-2)'; }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={path} />
+      </svg>
+    </button>
   );
 }
 
@@ -160,12 +189,37 @@ export default function Nav({ activePage }: NavProps) {
   const { t } = useT();
   const { settings } = useSettings();
 
+  const { showToast } = useToast();
+
   const [items, setItems]       = useState<NavItem[]>(loadOrder);
   const [hidden, setHidden]     = useState<Set<PageName>>(loadHidden);
   const [editing, setEditing]   = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const dragIndex               = useRef<number | null>(null);
-  const dragOverIndex           = useRef<number | null>(null);
+  const [focusLocked, setFocusLocked] = useState(isFocusLocked());
+  const [level, setLevel] = useState<UserLevel | null>(null);
+
+  useEffect(() => subscribeFocus(s => setFocusLocked(s.active && (s.state === 'RUNNING' || s.state === 'PAUSED'))), []);
+
+  useEffect(() => {
+    let alive = true;
+    function load() {
+      api.gamification.getStatus().then(s => { if (alive) setLevel(s); }).catch(() => {});
+    }
+    load();
+    const id = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  const tryNavigate = useCallback((target: PageName, param?: { weekStart?: string }) => {
+    if (focusLocked && target !== 'focus') {
+      showToast(t('focus.lockedNav'), 'info');
+      return;
+    }
+    if (target === 'week') navigate('week', param ?? { weekStart: getThisMonday() });
+    else navigate(target);
+  }, [focusLocked, navigate, showToast, t]);
+
+  const editListRef = useRef<HTMLDivElement | null>(null);
 
   const mounted = useRef(false);
   useEffect(() => {
@@ -179,14 +233,55 @@ export default function Nav({ activePage }: NavProps) {
     saveHidden(hidden);
   }, [hidden]);
 
-  function toggleHidden(page: PageName) {
+  // Esc exits edit mode
+  useEffect(() => {
+    if (!editing) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing]);
+
+  const toggleHidden = useCallback((page: PageName) => {
     if (UNHIDEABLE.has(page)) return;
     setHidden(prev => {
       const next = new Set(prev);
       if (next.has(page)) next.delete(page); else next.add(page);
       return next;
     });
-  }
+  }, []);
+
+  // Move within same group: swap with previous/next item that shares group.
+  // Items can't move across groups (group is a fixed property per page).
+  const movePage = useCallback((page: PageName, dir: -1 | 1) => {
+    setItems(prev => {
+      const idx = prev.findIndex(i => i.page === page);
+      if (idx < 0) return prev;
+      const group = prev[idx].group;
+      // Find neighbour in same group walking the flat array
+      let neighbour = -1;
+      for (let j = idx + dir; j >= 0 && j < prev.length; j += dir) {
+        if (prev[j].group === group) { neighbour = j; break; }
+      }
+      if (neighbour < 0) return prev;
+      const next = [...prev];
+      [next[idx], next[neighbour]] = [next[neighbour], next[idx]];
+      return next;
+    });
+    requestAnimationFrame(() => {
+      editListRef.current
+        ?.querySelector<HTMLElement>(`[data-page="${page}"] [data-move-focus]`)
+        ?.focus();
+    });
+  }, []);
+
+  const resetNav = useCallback(() => {
+    if (!window.confirm(t('nav.resetConfirm'))) return;
+    setItems(DEFAULT_ORDER);
+    setHidden(new Set());
+    showToast(t('nav.reordered'), 'success');
+  }, [t, showToast]);
 
   const visibleItems = editing
     ? items
@@ -195,22 +290,6 @@ export default function Nav({ activePage }: NavProps) {
         if (i.page === 'pantry' && settings.pantry_enabled === 0) return false;
         return true;
       });
-
-  function handleDragStart(i: number) { dragIndex.current = i; }
-  function handleDragOver(e: React.DragEvent, i: number) { e.preventDefault(); dragOverIndex.current = i; }
-  function handleDrop() {
-    const from = dragIndex.current;
-    const to   = dragOverIndex.current;
-    if (from === null || to === null || from === to) return;
-    setItems(prev => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-    dragIndex.current = null;
-    dragOverIndex.current = null;
-  }
 
   // Group items for rendering — exclude 'health' (shown in profile panel)
   const groupedItems = GROUPS.filter(g => g.id !== 'health').map(g => ({
@@ -276,82 +355,151 @@ export default function Nav({ activePage }: NavProps) {
            className="hide-scrollbar">
 
         {editing ? (
-          // Edit mode — flat draggable list
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {visibleItems.map(({ page, labelKey }, i) => (
-              <div
-                key={page}
-                draggable
-                onDragStart={() => handleDragStart(i)}
-                onDragOver={e => handleDragOver(e, i)}
-                onDrop={handleDrop}
+          // Edit mode — same grouped layout as normal, with ↑↓ + eye affordances per row
+          <div ref={editListRef} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {GROUPS.map(g => {
+              const groupItems = items.filter(i => i.group === g.id);
+              if (groupItems.length === 0) return null;
+              return (
+                <div key={g.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <div style={{
+                    fontSize: 9.5, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase',
+                    color: 'var(--fb-text-2)', padding: '4px 10px 6px',
+                  }}>
+                    {t(g.labelKey)}
+                  </div>
+                  {groupItems.map((item, idxInGroup) => {
+                    const { page, labelKey } = item;
+                    const isHidden = hidden.has(page);
+                    const isFirst  = idxInGroup === 0;
+                    const isLast   = idxInGroup === groupItems.length - 1;
+                    return (
+                      <div
+                        key={page}
+                        data-page={page}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '6px 6px 6px 10px', borderRadius: 7,
+                          color: isHidden ? 'var(--fb-text-3)' : 'var(--fb-text)',
+                          fontSize: 13,
+                          transition: 'background 140ms var(--ease-out-strong)',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--fb-bg)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <Icon d={ICONS[page] ?? ICONS.settings} size={15} />
+                        <span style={{
+                          flex: 1, minWidth: 0,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          textDecoration: isHidden ? 'line-through' : 'none',
+                          textDecorationColor: 'var(--fb-text-3)',
+                        }}>
+                          {t(labelKey)}
+                        </span>
+                        <ArrowBtn
+                          dir="up"
+                          disabled={isFirst}
+                          onClick={() => movePage(page, -1)}
+                          label={t('nav.reorderHide')}
+                          dataMoveFocus={!isFirst}
+                        />
+                        <ArrowBtn
+                          dir="down"
+                          disabled={isLast}
+                          onClick={() => movePage(page, 1)}
+                          label={t('nav.reorderHide')}
+                          dataMoveFocus={isFirst}
+                        />
+                        {!UNHIDEABLE.has(page) ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleHidden(page)}
+                            aria-label={isHidden ? t('nav.showPage') : t('nav.hidePage')}
+                            title={isHidden ? t('nav.showPage') : t('nav.hidePage')}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              width: 24, height: 24, borderRadius: 6,
+                              border: 0, background: 'transparent',
+                              color: isHidden ? 'var(--fb-text-3)' : 'var(--fb-text-2)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <EyeIcon hidden={isHidden} />
+                          </button>
+                        ) : (
+                          <span style={{ width: 24, flexShrink: 0 }} aria-hidden />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '6px 10px 0',
+              fontSize: 10.5, color: 'var(--fb-text-3)', letterSpacing: 0.3,
+              borderTop: '1px solid var(--fb-divider)', marginTop: 4,
+            }}>
+              <span>{t('nav.hiddenCount').replace('{n}', String(hidden.size))}</span>
+              <button
+                type="button"
+                onClick={resetNav}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '7px 10px', borderRadius: 7,
-                  color: hidden.has(page) ? 'var(--fb-text-3)' : 'var(--fb-text-2)',
-                  cursor: 'grab', userSelect: 'none',
-                  fontSize: 13,
+                  background: 'transparent', border: 0, padding: '2px 4px',
+                  color: 'var(--fb-text-2)', fontSize: 10.5, cursor: 'pointer',
+                  textDecoration: 'underline', textUnderlineOffset: 2,
                 }}
               >
-                <DragHandle />
-                <Icon d={ICONS[page] ?? ICONS.settings} size={15} />
-                <span style={{ flex: 1 }}>{t(labelKey)}</span>
-                {!UNHIDEABLE.has(page) && (
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); toggleHidden(page); }}
-                    onMouseDown={e => e.stopPropagation()}
-                    draggable={false}
-                    title={hidden.has(page) ? t('nav.showPage') : t('nav.hidePage')}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: 22, height: 22, borderRadius: 4,
-                      border: 0, background: 'transparent',
-                      color: 'var(--fb-text-2)', cursor: 'pointer',
-                    }}
-                  >
-                    <EyeIcon hidden={hidden.has(page)} />
-                  </button>
-                )}
-              </div>
-            ))}
+                {t('nav.reset')}
+              </button>
+            </div>
           </div>
         ) : (
-          // Normal mode — grouped list
-          groupedItems.map(g => (
-            <div key={g.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <div style={{
-                fontSize: 9.5, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase',
-                color: 'var(--fb-text-2)', padding: '4px 10px 6px',
-              }}>
-                {g.label}
+          // Normal mode — grouped list with one-shot stagger on first mount.
+          (() => {
+            let flatIdx = 0;
+            return groupedItems.map(g => (
+              <div key={g.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <div style={{
+                  fontSize: 9.5, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase',
+                  color: 'var(--fb-text-2)', padding: '4px 10px 6px',
+                }}>
+                  {t(g.labelKey)}
+                </div>
+                {g.items.map(item => {
+                  const isActive = item.page === activePage;
+                  const i = flatIdx++;
+                  const isLockedItem = focusLocked && item.page !== 'focus';
+                  return (
+                    <button
+                      key={item.page}
+                      onClick={() => tryNavigate(item.page)}
+                      title={isLockedItem ? t('focus.lockedNav') : undefined}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        background: isActive ? 'var(--fb-accent-soft)' : 'transparent',
+                        color: isActive ? 'var(--fb-accent)' : (isLockedItem ? 'var(--fb-text-3)' : 'var(--fb-text)'),
+                        border: 0, borderRadius: 7,
+                        padding: '7px 10px',
+                        fontSize: 13, fontWeight: isActive ? 600 : 400,
+                        fontFamily: 'var(--font-body)',
+                        cursor: isLockedItem ? 'not-allowed' : 'pointer',
+                        opacity: isLockedItem ? 0.55 : 1,
+                        textAlign: 'left', width: '100%',
+                        transition: 'background 160ms var(--ease-out-strong), color 160ms var(--ease-out-strong)',
+                        animation: 'fb-fade-up 320ms var(--ease-out-strong) both',
+                        animationDelay: `${Math.min(i * 22, 280)}ms`,
+                      }}
+                    >
+                      <Icon d={ICONS[item.page] ?? ICONS.settings} size={16} />
+                      <span>{t(item.labelKey)}</span>
+                    </button>
+                  );
+                })}
               </div>
-              {g.items.map(item => {
-                const isActive = item.page === activePage;
-                return (
-                  <button
-                    key={item.page}
-                    onClick={() => item.page === 'week' ? navigate('week', { weekStart: getThisMonday() }) : navigate(item.page)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      background: isActive ? 'var(--fb-accent-soft)' : 'transparent',
-                      color: isActive ? 'var(--fb-accent)' : 'var(--fb-text)',
-                      border: 0, borderRadius: 7,
-                      padding: '7px 10px',
-                      fontSize: 13, fontWeight: isActive ? 600 : 400,
-                      fontFamily: 'var(--font-body)',
-                      cursor: 'pointer',
-                      textAlign: 'left', width: '100%',
-                      transition: 'background 0.15s ease, color 0.15s ease',
-                    }}
-                  >
-                    <Icon d={ICONS[item.page] ?? ICONS.settings} size={16} />
-                    <span>{t(item.labelKey)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))
+            ));
+          })()
         )}
       </div>
 
@@ -362,14 +510,16 @@ export default function Nav({ activePage }: NavProps) {
             fontSize: 9.5, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase',
             color: 'var(--fb-text-2)', padding: '0 10px 6px',
           }}>
-            {GROUPS.find(g => g.id === 'health')?.label}
+            {t(GROUPS.find(g => g.id === 'health')?.labelKey ?? '')}
           </div>
           {profileItems.map(item => {
             const isActive = item.page === activePage;
+            const isLockedItem = focusLocked && item.page !== 'focus';
             return (
               <button
                 key={item.page}
-                onClick={() => navigate(item.page)}
+                onClick={() => tryNavigate(item.page)}
+                title={isLockedItem ? t('focus.lockedNav') : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   background: isActive ? 'var(--fb-accent-soft)' : 'transparent',
@@ -388,40 +538,94 @@ export default function Nav({ activePage }: NavProps) {
         </div>
       )}
 
-      {/* Bottom — user info (click to open/close profile) */}
+      {/* Bottom — level + user strip (click to open/close profile) */}
       <button
         onClick={() => setProfileOpen(v => !v)}
         style={{
           padding: '12px 10px 0', borderTop: '1px solid var(--fb-divider)',
-          display: 'flex', alignItems: 'center', gap: 10,
+          display: 'flex', flexDirection: 'column', gap: 8,
           background: 'transparent', border: 0, cursor: 'pointer',
           width: '100%', fontFamily: 'inherit', textAlign: 'left',
         }}
       >
-        <div style={{
-          width: 28, height: 28, borderRadius: '50%',
-          background: profileOpen ? 'var(--fb-accent-soft)' : 'var(--fb-card-2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: profileOpen ? 'var(--fb-accent)' : 'var(--fb-text-2)',
-          fontSize: 11, fontWeight: 600, flexShrink: 0,
-          transition: 'background 0.15s, color 0.15s',
-        }}>U</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 550, color: 'var(--fb-text)' }}>Utente</div>
-          <div style={{ fontSize: 10, color: 'var(--fb-text-3)' }}>{calRec > 0 ? `${calRec} kcal` : '—'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+          {/* Level badge or generic avatar */}
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%',
+            background: level
+              ? 'linear-gradient(135deg, var(--fb-accent) 0%, var(--fb-accent-2) 100%)'
+              : (profileOpen ? 'var(--fb-accent-soft)' : 'var(--fb-card-2)'),
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: level ? '0 2px 8px rgba(217,119,6,0.28)' : 'none',
+            transition: 'background 160ms var(--ease-out-strong)',
+          }}>
+            <span style={{
+              fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+              fontSize: level ? 14 : 11, fontWeight: 700,
+              color: level ? '#fff' : (profileOpen ? 'var(--fb-accent)' : 'var(--fb-text-2)'),
+              lineHeight: 1,
+            }}>
+              {level?.level ?? 'U'}
+            </span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 12, fontWeight: 600, color: 'var(--fb-text)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              letterSpacing: -0.1,
+            }}>
+              {level?.level_name ?? 'Utente'}
+            </div>
+            <div style={{
+              fontSize: 10, color: 'var(--fb-text-3)',
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {level
+                ? <>
+                    <span>{level.total_points}{level.next_level_min != null ? `/${level.next_level_min}` : ''} pt</span>
+                    {level.today_points > 0 && (
+                      <span style={{
+                        color: 'var(--fb-accent)', fontWeight: 700,
+                        background: 'var(--fb-accent-soft)',
+                        padding: '1px 5px', borderRadius: 99, fontSize: 9,
+                      }}>+{level.today_points}</span>
+                    )}
+                  </>
+                : (calRec > 0 ? `${calRec} kcal` : '—')
+              }
+            </div>
+          </div>
+          <svg
+            width="12" height="12" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round"
+            style={{
+              color: 'var(--fb-text-3)', flexShrink: 0,
+              transform: profileOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 240ms var(--ease-out-strong)',
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </div>
-        <svg
-          width="12" height="12" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" strokeWidth="2.5"
-          strokeLinecap="round" strokeLinejoin="round"
-          style={{
-            color: 'var(--fb-text-3)', flexShrink: 0,
-            transform: profileOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s',
-          }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+
+        {/* Level progress bar */}
+        {level && level.next_level_min != null && level.next_level_min > 0 && (
+          <div style={{
+            height: 3, width: '100%', borderRadius: 99,
+            background: 'var(--fb-border)', overflow: 'hidden',
+          }}>
+            <div style={{
+              height: '100%',
+              width: `${Math.min(100, Math.round(((level.total_points ?? 0) / level.next_level_min) * 100))}%`,
+              borderRadius: 99,
+              background: 'linear-gradient(90deg, var(--fb-accent) 0%, var(--fb-accent-2) 100%)',
+              transition: 'width 600ms cubic-bezier(0.23,1,0.32,1)',
+            }} />
+          </div>
+        )}
       </button>
     </nav>
   );

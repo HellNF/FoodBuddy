@@ -25,8 +25,6 @@ import QuickLogStrip from '../components/dashboard/QuickLogStrip';
 import SupplementsWidget from '../components/dashboard/SupplementsWidget';
 import PantryWidget from '../components/dashboard/PantryWidget';
 import WeightWidget from '../components/dashboard/WeightWidget';
-import CollapsibleSection from '../components/dashboard/CollapsibleSection';
-import GamificationCard from '../components/dashboard/GamificationCard';
 import SectionStreaksCard from '../components/dashboard/SectionStreaksCard';
 import SleepCard from '../components/dashboard/SleepCard';
 import TasksCard from '../components/dashboard/TasksCard';
@@ -45,6 +43,7 @@ import {
   type WaterEntry, type SupplementDay, type FrequentFood, type WeightEntry,
   type DailyEnergy, type Exercise,
   type MealSuggestion, type MealSuggestionsResult, type TDEEResult,
+  type WidgetSize,
 } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 
@@ -91,6 +90,10 @@ const btnPrimary = fbBtnPrimary;
 
 interface DragSectionProps {
   id: string;
+  editing: boolean;
+  locked?: boolean;
+  size: WidgetSize;
+  onSetSize?: (id: string, size: WidgetSize) => void;
   dragId: string | null;
   dragOverId: string | null;
   onDragStart: (id: string) => void;
@@ -98,26 +101,192 @@ interface DragSectionProps {
   onDrop: (id: string) => void;
   onDragEnd: () => void;
   children: React.ReactNode;
+  sizeLabels?: Record<WidgetSize, string>;
+  lockedLabel?: string;
+  resizeLabel?: string;
 }
 
-function DragSection({ id, dragId, dragOverId, onDragStart, onDragOver, onDrop, onDragEnd, children }: DragSectionProps) {
+const PICKER_OPTIONS: { size: WidgetSize; w: number; h: number }[] = [
+  { size: 'XS', w: 18, h: 18 },
+  { size: 'S',  w: 26, h: 22 },
+  { size: 'M',  w: 38, h: 22 },
+  { size: 'L',  w: 38, h: 36 },
+];
+
+function sizeClass(size: WidgetSize): string {
+  // XL → dwz-auto: locked full-width widgets occupy needed content height
+  // (diary/secondary/collapsibles don't fit cleanly in fixed 2-row grid)
+  return size === 'XL' ? 'dwz-auto'
+       : size === 'L'  ? 'dwz-L'
+       : size === 'M'  ? 'dwz-M'
+       : size === 'S'  ? 'dwz-S'
+       : 'dwz-XS';
+}
+
+function DragSection({
+  id, editing, locked, size, onSetSize,
+  dragId, dragOverId, onDragStart, onDragOver, onDrop, onDragEnd, children,
+  sizeLabels, lockedLabel, resizeLabel,
+}: DragSectionProps) {
+  const isDragOver = dragOverId === id && dragId !== id;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [hoverPreview, setHoverPreview] = useState<WidgetSize | null>(null);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+
+  // Close picker on outside click / Esc
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function onDown(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false); setHoverPreview(null);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setPickerOpen(false); setHoverPreview(null); }
+    }
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [pickerOpen]);
+
+  // Hover only highlights the swatch — the widget never resizes on hover (no flicker).
+  // Click commits the new size.
+  const cls = [sizeClass(size), editing ? 'dash-wiggle' : ''].filter(Boolean).join(' ');
   return (
     <div
-      draggable
-      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; onDragStart(id); }}
-      onDragOver={e => { e.preventDefault(); onDragOver(id); }}
-      onDrop={() => onDrop(id)}
-      onDragEnd={onDragEnd}
+      draggable={editing && !pickerOpen}
+      onDragStart={e => { if (!editing || pickerOpen) return; e.dataTransfer.effectAllowed = 'move'; onDragStart(id); }}
+      onDragOver={e => { if (!editing) return; e.preventDefault(); onDragOver(id); }}
+      onDrop={() => editing && onDrop(id)}
+      onDragEnd={() => editing && onDragEnd()}
+      className={cls}
       style={{
+        position: 'relative',
         opacity: dragId === id ? 0.35 : 1,
-        transition: 'opacity 0.15s',
-        borderRadius: 12,
-        outline: dragOverId === id && dragId !== id ? '2px dashed var(--fb-accent)' : 'none',
-        outlineOffset: 4,
-        cursor: dragId ? 'grabbing' : 'auto',
+        transition: 'opacity 240ms cubic-bezier(0.23,1,0.32,1), outline-color 200ms',
+        borderRadius: 18,
+        outline: editing
+          ? (isDragOver ? '2px dashed var(--fb-accent)' : '1px dashed var(--fb-border-strong)')
+          : 'none',
+        outlineOffset: 3,
+        cursor: editing ? (dragId ? 'grabbing' : 'grab') : 'auto',
+        display: 'flex', flexDirection: 'column',
       }}
     >
       {children}
+      {editing && !locked && onSetSize && (
+        <div ref={pickerRef} style={{ position: 'absolute', right: 8, bottom: 8, zIndex: 3 }}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setPickerOpen(v => !v); }}
+            onMouseDown={e => e.stopPropagation()}
+            draggable={false}
+            title={resizeLabel ?? 'Resize'}
+            style={{
+              width: 30, height: 30, borderRadius: 99,
+              border: pickerOpen ? '1px solid var(--fb-accent)' : '1px solid var(--fb-border-strong)',
+              background: pickerOpen ? 'var(--fb-accent-soft)' : 'color-mix(in srgb, var(--fb-bg-2) 92%, transparent)',
+              backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+              color: pickerOpen ? 'var(--fb-accent)' : 'var(--fb-text-2)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
+              transition: 'transform 220ms cubic-bezier(0.23,1,0.32,1), color 200ms, background 200ms',
+              position: 'relative',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h6v6" />
+              <path d="M9 21H3v-6" />
+              <path d="M21 3l-8 8" />
+              <path d="M3 21l8-8" />
+            </svg>
+            <span style={{
+              position: 'absolute', right: -2, top: -2,
+              fontSize: 8, fontWeight: 700,
+              background: 'var(--fb-accent)', color: '#fff',
+              padding: '1px 4px', borderRadius: 99, letterSpacing: 0.4,
+              fontFamily: 'var(--font-display)',
+            }}>{size}</span>
+          </button>
+
+          {pickerOpen && (
+            <div
+              onMouseDown={e => e.stopPropagation()}
+              style={{
+                position: 'absolute', right: 0, bottom: 38, zIndex: 4,
+                display: 'flex', alignItems: 'flex-end', gap: 8,
+                padding: 10,
+                background: 'color-mix(in srgb, var(--fb-bg-2) 94%, transparent)',
+                border: '1px solid var(--fb-border-strong)',
+                borderRadius: 14,
+                backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)',
+                animation: 'fb-fade-up 180ms cubic-bezier(0.23,1,0.32,1) both',
+              }}
+            >
+              {PICKER_OPTIONS.map(opt => {
+                const isActive = size === opt.size;
+                const isHover  = hoverPreview === opt.size;
+                return (
+                  <button
+                    key={opt.size}
+                    type="button"
+                    onClick={() => { onSetSize(id, opt.size); setPickerOpen(false); setHoverPreview(null); }}
+                    onMouseEnter={() => setHoverPreview(opt.size)}
+                    onMouseLeave={() => setHoverPreview(null)}
+                    onMouseDown={e => e.stopPropagation()}
+                    draggable={false}
+                    title={sizeLabels?.[opt.size] ?? opt.size}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      background: 'transparent', border: 0, cursor: 'pointer',
+                      padding: 4, borderRadius: 8,
+                      transition: 'transform 200ms cubic-bezier(0.23,1,0.32,1)',
+                      transform: isHover ? 'translateY(-2px) scale(1.05)' : 'translateY(0) scale(1)',
+                    }}
+                  >
+                    <div style={{
+                      width: opt.w, height: opt.h,
+                      borderRadius: 4,
+                      background: isActive
+                        ? 'var(--fb-accent)'
+                        : (isHover ? 'color-mix(in srgb, var(--fb-accent) 50%, transparent)' : 'var(--fb-border-strong)'),
+                      transition: 'background 180ms cubic-bezier(0.23,1,0.32,1)',
+                      boxShadow: isActive ? '0 0 0 2px var(--fb-accent-soft)' : 'none',
+                    }} />
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: 0.6,
+                      color: isActive ? 'var(--fb-accent)' : (isHover ? 'var(--fb-text)' : 'var(--fb-text-3)'),
+                      fontFamily: 'var(--font-display)',
+                    }}>{opt.size}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      {editing && locked && (
+        <div style={{
+          position: 'absolute', right: 8, bottom: 8, zIndex: 2,
+          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '4px 8px', borderRadius: 99,
+          border: '1px solid var(--fb-border)',
+          background: 'color-mix(in srgb, var(--fb-bg-2) 92%, transparent)',
+          color: 'var(--fb-text-3)', fontSize: 9.5, letterSpacing: 0.6,
+          textTransform: 'uppercase',
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 018 0v4" />
+          </svg>
+          {lockedLabel ?? 'Locked'}
+        </div>
+      )}
     </div>
   );
 }
@@ -181,9 +350,42 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [waterCustomMl, setWaterCustomMl]   = useState('');
   const [confirmAllOpen, setConfirmAllOpen] = useState(false);
 
-  // ── Widget reorder (drag-and-drop) ────────────────────────────────────────
-  const DEFAULT_WIDGET_ORDER = ['gamification','hero','adaptive_tdee','tasks_habits','diary','meal_suggest','lifestyle','workout','insights','secondary','collapsibles'];
+  // ── Widget reorder + resize (iOS-style edit mode) ─────────────────────────
+  const DEFAULT_WIDGET_ORDER = [
+    'daily_intake','balance','water',
+    'tasks','habits',
+    'sleep','mood','focus_widget',
+    'workout','streaks',
+    'meal_suggest','adaptive_tdee','insights',
+    'diary','secondary','collapsibles',
+  ];
+  // Sensible defaults matching the new bento sizing:
+  //   XS = 2×1 quadrato (~155×152)     S = 4×1 wide pill (~315×152)
+  //   M  = 6×2 tall    (~485×318)      L = 12×2 full row  (~1024×318)
+  const DEFAULT_WIDGET_SIZES: Record<string, WidgetSize> = {
+    daily_intake:   'M',
+    balance:        'M',
+    water:          'XS',
+    tasks:          'M',
+    habits:         'M',
+    sleep:          'S',
+    mood:           'XS',
+    focus_widget:   'XS',
+    workout:        'S',
+    streaks:        'XS',
+    meal_suggest:   'M',
+    adaptive_tdee:  'M',
+    insights:       'M',
+    diary:          'XL',
+    secondary:      'XL',
+    collapsibles:   'XL',
+  };
+  const LOCKED_WIDGETS = new Set(['diary', 'secondary', 'collapsibles']);
+  const RESIZE_CYCLE: WidgetSize[] = ['XS', 'S', 'M', 'L'];
+
   const [widgetOrder, setWidgetOrder] = useState<string[]>(DEFAULT_WIDGET_ORDER);
+  const [widgetSizes, setWidgetSizes] = useState<Record<string, WidgetSize>>(DEFAULT_WIDGET_SIZES);
+  const [editing, setEditing] = useState(false);
   const [mealSuggest, setMealSuggest] = useState<MealSuggestionsResult | null>(null);
   const [tdeeResult, setTdeeResult] = useState<TDEEResult | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -195,14 +397,55 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       if (stored) {
         const parsed = JSON.parse(stored) as string[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Keep saved order, append any new DEFAULT ids not yet saved, drop obsolete ones
-          const merged = [...parsed.filter(id => DEFAULT_WIDGET_ORDER.includes(id)), ...DEFAULT_WIDGET_ORDER.filter(id => !parsed.includes(id))];
-          setWidgetOrder(merged);
+          // Legacy widget IDs that are now split into bento cells. Any of these
+          // present in the stored order means we should snap to defaults.
+          const LEGACY = new Set(['gamification', 'lifestyle', 'tasks_habits', 'sleep_mood', 'hero']);
+          const hadLegacy = parsed.some(id => LEGACY.has(id));
+          if (hadLegacy) {
+            setWidgetOrder(DEFAULT_WIDGET_ORDER);
+            api.settings.save({ dashboard_widget_order: JSON.stringify(DEFAULT_WIDGET_ORDER) });
+          } else {
+            const seen = new Set<string>();
+            const dedup = parsed.filter(id => seen.has(id) ? false : (seen.add(id), true));
+            const merged = [...dedup.filter(id => DEFAULT_WIDGET_ORDER.includes(id)), ...DEFAULT_WIDGET_ORDER.filter(id => !dedup.includes(id))];
+            setWidgetOrder(merged);
+          }
+        }
+      }
+      // Sizes
+      const storedSizes = settings?.dashboard_widget_sizes;
+      if (storedSizes) {
+        const parsed = JSON.parse(storedSizes) as Record<string, WidgetSize>;
+        if (parsed && typeof parsed === 'object') {
+          setWidgetSizes({ ...DEFAULT_WIDGET_SIZES, ...parsed });
         }
       }
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.dashboard_widget_order]);
+  }, [settings?.dashboard_widget_order, settings?.dashboard_widget_sizes]);
+
+  // Esc exits edit mode
+  useEffect(() => {
+    if (!editing) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing]);
+
+  function setWidgetSizeFor(id: string, next: WidgetSize) {
+    if (LOCKED_WIDGETS.has(id)) return;
+    if (!RESIZE_CYCLE.includes(next)) return;
+    const newSizes = { ...widgetSizes, [id]: next };
+    setWidgetSizes(newSizes);
+    api.settings.save({ dashboard_widget_sizes: JSON.stringify(newSizes) });
+  }
+
+  function widgetSize(id: string): WidgetSize {
+    if (LOCKED_WIDGETS.has(id)) return DEFAULT_WIDGET_SIZES[id] ?? 'XL';
+    return widgetSizes[id] ?? DEFAULT_WIDGET_SIZES[id] ?? 'M';
+  }
 
   function handleWidgetDrop(targetId: string) {
     if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
@@ -548,6 +791,33 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+          {/* Edit-widgets toggle (pencil → check) */}
+          <button
+            type="button"
+            onClick={() => setEditing(v => !v)}
+            title={editing ? t('dash.editDone') : t('dash.edit')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 30, height: 30, borderRadius: 8,
+              border: editing ? '1px solid var(--fb-accent)' : '1px solid var(--fb-border-strong)',
+              background: editing ? 'var(--fb-accent-soft)' : 'transparent',
+              color: editing ? 'var(--fb-accent)' : 'var(--fb-text-2)',
+              cursor: 'pointer',
+              transition: 'all 220ms cubic-bezier(0.23,1,0.32,1)',
+            }}
+          >
+            {editing ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            )}
+          </button>
+
           {pantries.length > 1 && (
             <select value={logPantryId || ''} onChange={e => selectPantry(Number(e.target.value))}
               style={{ fontSize: 11, background: 'var(--fb-card)', border: '1px solid var(--fb-border)', borderRadius: 6, padding: '4px 8px', color: 'var(--fb-text-2)', outline: 'none' }}>
@@ -671,79 +941,111 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
       {/* ── SCROLL AREA ──────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 60px' }} className="hide-scrollbar">
-        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="dash-bento-grid" style={{ maxWidth: 1280, margin: '0 auto' }}>
           {widgetOrder.map(wid => {
+            const sz = widgetSize(wid);
+            const locked = LOCKED_WIDGETS.has(wid);
+            const sizeLabels: Record<WidgetSize, string> = {
+              XS: t('dash.sizeXS'),
+              S:  t('dash.sizeS'),
+              M:  t('dash.sizeM'),
+              L:  t('dash.sizeL'),
+              XL: t('dash.sizeL'),
+            };
             const dragProps = {
-              id: wid, dragId, dragOverId,
+              id: wid, dragId, dragOverId, editing, size: sz, locked,
+              onSetSize: setWidgetSizeFor,
+              sizeLabels, lockedLabel: t('dash.locked'), resizeLabel: t('dash.resize'),
               onDragStart: setDragId,
               onDragOver: setDragOverId,
               onDrop: handleWidgetDrop,
               onDragEnd: () => { setDragId(null); setDragOverId(null); },
             };
-            if (wid === 'gamification') return (
+            if (wid === 'daily_intake') return (
               <DragSection key={wid} {...dragProps}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <GamificationCard />
-                  <SectionStreaksCard />
-                </div>
+                <DailyIntakeCard
+                  size={sz}
+                  calories={{ actual: T.cal,     min: TG.cal.min,     max: TG.cal.max,     rec: TG.cal.rec }}
+                  protein={{ actual: T.protein,  min: TG.protein.min, max: TG.protein.max, rec: TG.protein.rec }}
+                  carbs={{   actual: T.carbs,    min: TG.carbs.min,   max: TG.carbs.max,   rec: TG.carbs.rec }}
+                  fat={{     actual: T.fat,      min: TG.fat.min,     max: TG.fat.max,     rec: TG.fat.rec }}
+                />
               </DragSection>
             );
-            if (wid === 'hero') return (
+            if (wid === 'balance') return (
               <DragSection key={wid} {...dragProps}>
-                <section className="dash-hero-grid">
-                  <DailyIntakeCard
-                    calories={{ actual: T.cal,     min: TG.cal.min,     max: TG.cal.max,     rec: TG.cal.rec }}
-                    protein={{ actual: T.protein,  min: TG.protein.min, max: TG.protein.max, rec: TG.protein.rec }}
-                    carbs={{   actual: T.carbs,    min: TG.carbs.min,   max: TG.carbs.max,   rec: TG.carbs.rec }}
-                    fat={{     actual: T.fat,      min: TG.fat.min,     max: TG.fat.max,     rec: TG.fat.rec }}
-                  />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <EnergyBalanceCard
-                      caloriesIn={caloriesIn}
-                      netKcal={netKcal}
-                      energyOut={energyOut}
-                      stepCount={stepCount}
-                      restingKcal={restingKcal}
-                      activeKcal={activeKcal}
-                      extraKcal={extraKcal}
-                      steps={steps}
-                      restingFromYest={restingFromYest}
-                      onRestingChange={v => { setRestingKcal(v); setRestingFromYest(false); }}
-                      onActiveChange={setActiveKcal}
-                      onExtraChange={setExtraKcal}
-                      onStepsChange={v => setSteps(v.replace(/[^0-9]/g, ''))}
-                      onSave={handleEnergySave}
-                    />
-                    <WaterCard
-                      waterTotal={waterTotal}
-                      waterGoal={waterGoal}
-                      onAdd={addWater}
-                      onCustom={() => setWaterCustomOpen(true)}
-                    />
-                  </div>
-                </section>
+                <EnergyBalanceCard
+                  size={sz}
+                  caloriesIn={caloriesIn}
+                  netKcal={netKcal}
+                  energyOut={energyOut}
+                  stepCount={stepCount}
+                  restingKcal={restingKcal}
+                  activeKcal={activeKcal}
+                  extraKcal={extraKcal}
+                  steps={steps}
+                  restingFromYest={restingFromYest}
+                  onRestingChange={v => { setRestingKcal(v); setRestingFromYest(false); }}
+                  onActiveChange={setActiveKcal}
+                  onExtraChange={setExtraKcal}
+                  onStepsChange={v => setSteps(v.replace(/[^0-9]/g, ''))}
+                  onSave={handleEnergySave}
+                />
               </DragSection>
             );
-            if (wid === 'tasks_habits') return (
+            if (wid === 'water') return (
               <DragSection key={wid} {...dragProps}>
-                <section className="dash-secondary-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                  <TasksCard />
-                  <HabitsCard />
-                </section>
+                <WaterCard
+                  size={sz}
+                  waterTotal={waterTotal}
+                  waterGoal={waterGoal}
+                  onAdd={addWater}
+                  onCustom={() => setWaterCustomOpen(true)}
+                />
+              </DragSection>
+            );
+            if (wid === 'tasks') return (
+              <DragSection key={wid} {...dragProps}>
+                <TasksCard size={sz} />
+              </DragSection>
+            );
+            if (wid === 'habits') return (
+              <DragSection key={wid} {...dragProps}>
+                <HabitsCard size={sz} />
+              </DragSection>
+            );
+            if (wid === 'sleep') return (
+              <DragSection key={wid} {...dragProps}>
+                <SleepCard size={sz} />
+              </DragSection>
+            );
+            if (wid === 'mood') return (
+              <DragSection key={wid} {...dragProps}>
+                <MoodCard size={sz} />
+              </DragSection>
+            );
+            if (wid === 'streaks') return (
+              <DragSection key={wid} {...dragProps}>
+                <SectionStreaksCard size={sz} />
               </DragSection>
             );
             if (wid === 'diary') return (
               <DragSection key={wid} {...dragProps}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{
+                  background: 'var(--fb-card)', border: '1px solid var(--fb-border)',
+                  borderRadius: 18, padding: 18,
+                  display: 'flex', flexDirection: 'column', gap: 14,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>📖 Diary · {t('nav.today')}</span>
+                    <ReliabilityPill date={dateStr} />
+                  </div>
                   <QuickLogStrip
                     favorites={favorites}
                     frequent={frequent}
                     onQuickLog={quickLog}
                     onNavigateFoods={() => navigate('foods')}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <ReliabilityPill date={dateStr} />
-                  </div>
                   <DiaryTable
                     mealGroups={mealGroups}
                     loggedEntries={loggedEntries}
@@ -763,6 +1065,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             if (wid === 'adaptive_tdee') return (
               <DragSection key={wid} {...dragProps}>
                 <AdaptiveTdeeCard
+                  size={sz}
                   result={tdeeResult}
                   calRec={TG.cal.rec}
                   onApply={applyTdee}
@@ -774,29 +1077,26 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             if (wid === 'meal_suggest') return (
               <DragSection key={wid} {...dragProps}>
                 <MealSuggestionCard
+                  size={sz}
                   data={mealSuggest}
                   onLog={logSuggestion}
                   onNavigateFoods={() => navigate('foods')}
                 />
               </DragSection>
             );
-            if (wid === 'lifestyle') return (
+            if (wid === 'focus_widget') return (
               <DragSection key={wid} {...dragProps}>
-                <section className="dash-secondary-grid">
-                  <SleepCard />
-                  <FocusCard />
-                  <MoodCard />
-                </section>
+                <FocusCard size={sz} />
               </DragSection>
             );
             if (wid === 'workout') return (
               <DragSection key={wid} {...dragProps}>
-                <WorkoutCard />
+                <WorkoutCard size={sz} />
               </DragSection>
             );
             if (wid === 'insights') return (
               <DragSection key={wid} {...dragProps}>
-                <InsightCard />
+                <InsightCard size={sz} />
               </DragSection>
             );
             if (wid === 'secondary') return (
@@ -810,26 +1110,64 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             );
             if (wid === 'collapsibles') return (
               <DragSection key={wid} {...dragProps}>
-                <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <CollapsibleSection
-                    icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5a5 5 0 000 11M17.5 6.5a5 5 0 010 11M3 12h3m12 0h3M6.5 12h11"/></svg>}
-                    title={t('dash.exerciseTitle')}
-                    subtitle={exercises.length > 0 ? t('dash.exerciseSummary', { n: exercises.length, kcal: exTotalKcal, min: exTotalMin }) : t('dash.logWorkout')}
-                    badge={exercises.length > 0 ? t('dash.nSessions', { n: exercises.length }) : t('dash.empty')}
-                  >
+                <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'start' }}>
+                  {/* EXERCISE LOG CARD */}
+                  <div style={{
+                    background: 'var(--fb-card)', border: '1px solid var(--fb-border)', borderRadius: 18,
+                    padding: 18, display: 'flex', flexDirection: 'column', gap: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>💪 {t('dash.exerciseTitle')}</span>
+                        <div style={{ fontSize: 11, color: 'var(--fb-text-3)', marginTop: 2 }}>
+                          {exercises.length > 0
+                            ? t('dash.exerciseSummary', { n: exercises.length, kcal: exTotalKcal, min: exTotalMin })
+                            : t('dash.logWorkout')}
+                        </div>
+                      </div>
+                      {exercises.length > 0 && (
+                        <span style={{
+                          fontSize: 9.5, fontWeight: 700, color: 'var(--fb-accent)',
+                          background: 'var(--fb-accent-soft)',
+                          padding: '3px 8px', borderRadius: 99,
+                          letterSpacing: 0.3, fontFamily: 'var(--font-display)',
+                        }}>{exercises.length} {exercises.length === 1 ? 'sessione' : 'sessioni'}</span>
+                      )}
+                    </div>
                     <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />
-                  </CollapsibleSection>
-                  <CollapsibleSection
-                    icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
-                    title={t('dash.notesTitle')}
-                    subtitle={note ? note.slice(0, 60) + (note.length > 60 ? '…' : '') : t('dash.notesHint')}
-                    badge={note ? t('dash.hasNote') : t('dash.empty')}
-                  >
+                  </div>
+
+                  {/* DAILY NOTES CARD */}
+                  <div style={{
+                    background: 'var(--fb-card)', border: '1px solid var(--fb-border)', borderRadius: 18,
+                    padding: 18, display: 'flex', flexDirection: 'column', gap: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>📝 {t('dash.notesTitle')}</span>
+                        <div style={{ fontSize: 11, color: 'var(--fb-text-3)', marginTop: 2 }}>{t('dash.notesHint')}</div>
+                      </div>
+                      {note && (
+                        <span style={{
+                          fontSize: 9.5, fontWeight: 700, color: 'var(--fb-accent)',
+                          background: 'var(--fb-accent-soft)',
+                          padding: '3px 8px', borderRadius: 99,
+                          letterSpacing: 0.3, fontFamily: 'var(--font-display)',
+                        }}>{note.length} chars</span>
+                      )}
+                    </div>
                     <textarea value={note} onChange={e => handleNoteChange(e.target.value)}
-                      placeholder={t('dash.notesPlaceholder')} rows={4}
-                      style={{ width: '100%', background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--fb-text)', outline: 'none', fontFamily: 'var(--font-body)', resize: 'vertical', marginTop: 12 }}
+                      placeholder={t('dash.notesPlaceholder')} rows={6}
+                      style={{
+                        flex: 1, width: '100%',
+                        background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)',
+                        borderRadius: 10, padding: '12px 14px',
+                        fontSize: 13, color: 'var(--fb-text)', outline: 'none',
+                        fontFamily: 'var(--font-body)', resize: 'vertical',
+                        minHeight: 140,
+                      }}
                     />
-                  </CollapsibleSection>
+                  </div>
                 </section>
               </DragSection>
             );

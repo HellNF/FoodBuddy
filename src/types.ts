@@ -305,6 +305,7 @@ export interface Settings {
   notif_meal_dinner_time: string;
   notif_meal_snack_time: string;
   dashboard_widget_order: string;
+  dashboard_widget_sizes?: string;
   onboarding_complete?: number;     // 0 or 1
   insights_enabled?: number;
   insights_use_nutrition?: number;
@@ -321,6 +322,8 @@ export interface Settings {
   tdee_last_seen_value?: number;
   user_sex?: 'male' | 'female' | 'unspecified';
 }
+
+export type WidgetSize = 'XS' | 'S' | 'M' | 'L' | 'XL';
 
 export interface MealSuggestion {
   food_id: number;

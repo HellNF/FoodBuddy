@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { api } from '../api';
+import { useT } from '../i18n/useT';
 import type { BarcodeSearchResult } from '../types';
 
 interface FoodNameSearchProps {
@@ -16,6 +17,7 @@ const serifItalic: CSSProperties = {
 };
 
 export default function FoodNameSearch({ onResult }: FoodNameSearchProps) {
+  const { t } = useT();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<BarcodeSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +37,7 @@ export default function FoodNameSearch({ onResult }: FoodNameSearchProps) {
         setResults(res);
         setSearched(true);
       } catch {
-        setError('Errore di ricerca, riprova');
+        setError(t('common.searchError'));
       } finally {
         setLoading(false);
       }
@@ -137,10 +139,10 @@ export default function FoodNameSearch({ onResult }: FoodNameSearchProps) {
           padding: '24px 12px',
         }}>
           <span style={{ ...serifItalic, fontSize: 16, color: 'var(--fb-text-2)' }}>
-            Nessun risultato
+            {t('common.noResults')}
           </span>
           <span style={{ fontSize: 12, color: 'var(--fb-text-3)' }}>
-            Prova un altro termine o un sinonimo
+            {t('common.tryOtherTerm')}
           </span>
         </div>
       )}

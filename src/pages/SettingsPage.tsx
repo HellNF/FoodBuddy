@@ -50,12 +50,12 @@ export default function SettingsPage() {
       if (!filePath) return;
       const result = await api.customDb.setPath(filePath);
       if (!result.ok) {
-        setCustomDbError(result.error ?? 'Errore sconosciuto');
+        setCustomDbError(result.error ?? t('common.unknownError'));
         return;
       }
       setCustomDbStatus(await api.customDb.getStatus());
     } catch (e: unknown) {
-      setCustomDbError(e instanceof Error ? e.message : 'Errore nella comunicazione con il processo principale');
+      setCustomDbError(e instanceof Error ? e.message : t('common.ipcError'));
     } finally {
       setCustomDbLoading(false);
     }
@@ -325,14 +325,14 @@ export default function SettingsPage() {
               disabled={customDbLoading}
               className="text-sm px-4 py-2 rounded-lg border border-accent text-accent hover:bg-accent/10 cursor-pointer disabled:opacity-40 transition-colors"
             >
-              {customDbLoading ? 'Caricamento…' : customDbStatus.status === 'ok' ? 'Cambia file' : 'Seleziona file .db'}
+              {customDbLoading ? t('common.loading') : customDbStatus.status === 'ok' ? t('common.changeFile') : t('common.selectDbFile')}
             </button>
             {customDbStatus.status !== 'none' && (
               <button
                 onClick={handleClearCustomDb}
                 className="text-sm px-3 py-2 rounded-lg border border-border text-text-sec hover:text-red-400 hover:border-red/50 cursor-pointer transition-colors"
               >
-                Rimuovi
+                {t('common.remove')}
               </button>
             )}
           </div>

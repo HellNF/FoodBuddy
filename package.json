@@ -47,7 +47,8 @@
     ],
     "extraMetadata": {
       "main": "main/main.js"
-    }
+    },
+    "afterPack": "build/afterPack.cjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",

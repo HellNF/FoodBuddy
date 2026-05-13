@@ -10,6 +10,7 @@ import type { Habit, HabitWeekStat, HabitStats } from '../types';
 import StreakBadge from '../components/StreakBadge';
 import WeeklySummaryCard from '../components/WeeklySummaryCard';
 import ModuleInsightsCard from '../components/ModuleInsightsCard';
+import EmptyState from '../components/EmptyState';
 
 // ── Preset icons ──────────────────────────────────────────────────────────────
 const PRESET_ICONS = ['✅', '💪', '🏃', '📖', '💧', '🧘', '🥗', '😴', '🎯', '🎨', '🎵', '🧹', '🌿', '🛁', '🧴'];
@@ -426,13 +427,12 @@ export default function HabitsPage() {
 
           {/* Habit cards */}
           {habits.length === 0 && !showForm && (
-            <div style={{
-              textAlign: 'center', padding: '40px 16px',
-              color: 'var(--fb-text-3)', fontSize: 14, fontStyle: 'italic',
-              border: '1px dashed var(--fb-border)', borderRadius: 14,
-            }}>
-              {t('habits.empty')}
-            </div>
+            <EmptyState
+              icon="🌱"
+              title={t('habits.empty')}
+              description={t('habits.emptyDesc')}
+              action={{ label: t('habits.addFirst'), onClick: () => setShowForm(true) }}
+            />
           )}
 
           {habits.map(habit => {
@@ -620,13 +620,12 @@ export default function HabitsPage() {
       {tab === 'history' && (
         <>
           {habits.length === 0 ? (
-            <div style={{
-              textAlign: 'center', padding: '40px 16px',
-              color: 'var(--fb-text-3)', fontSize: 14, fontStyle: 'italic',
-              border: '1px dashed var(--fb-border)', borderRadius: 14,
-            }}>
-              {t('habits.empty')}
-            </div>
+            <EmptyState
+              icon="📊"
+              title={t('habits.empty')}
+              description={t('habits.emptyDesc')}
+              action={{ label: t('habits.addFirst'), onClick: () => { setTab('today'); setShowForm(true); } }}
+            />
           ) : (
             habits.map(habit => {
               const stat = weekStats.find(s => s.habit_id === habit.id);

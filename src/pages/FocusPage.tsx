@@ -10,7 +10,10 @@ import BarChartCard from '../components/BarChartCard';
 import StreakBadge from '../components/StreakBadge';
 import WeeklySummaryCard from '../components/WeeklySummaryCard';
 import ModuleInsightsCard from '../components/ModuleInsightsCard';
+import EmptyState from '../components/EmptyState';
 import { formatShortDate } from '../lib/dateUtil';
+import { updateFocus, clearFocus } from '../lib/focusLock';
+import { soundFocusStart, soundBreakStart, soundSessionEnd } from '../lib/focusSounds';
 import type { FocusDayStats, FocusSession, FocusStats } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -160,6 +163,12 @@ function SessionTimerTab({ onSessionComplete }: { onSessionComplete: () => void 
     pauseStartRef.current  = null;
     setPhase(p);
     setPhaseRemainSec(durationMin * 60);
+    if (p === 'focus') soundFocusStart(); else soundBreakStart();
+    updateFocus({
+      active: true, mode: 'session', state: 'RUNNING',
+      phase: p, remainSec: durationMin * 60, totalSec: durationMin * 60,
+      project: project || undefined,
+    });
   }
 
   function loadDayStats() {
@@ -177,6 +186,8 @@ function SessionTimerTab({ onSessionComplete }: { onSessionComplete: () => void 
       if (newDone >= totalMinRef.current) {
         // Session complete
         const id = sessionIdRef.current!;
+        soundSessionEnd();
+        clearFocus();
         api.focus.stopSession(id, Math.max(1, newDone)).then(() => {
           const pts = 10 + Math.floor(newDone / 25) * 5;
           showToast(`Sessione completata! +${newDone} min 🎉`);
@@ -210,6 +221,7 @@ function SessionTimerTab({ onSessionComplete }: { onSessionComplete: () => void 
     intervalRef.current = setInterval(() => {
       const rem = getPhaseRemainSec();
       setPhaseRemainSec(rem);
+      updateFocus({ remainSec: rem });
       if (rem === 0) {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
@@ -237,6 +249,7 @@ function SessionTimerTab({ onSessionComplete }: { onSessionComplete: () => void 
   function handlePause() {
     pauseStartRef.current = Date.now();
     setSState('PAUSED');
+    updateFocus({ state: 'PAUSED' });
   }
 
   function handleResume() {
@@ -245,12 +258,14 @@ function SessionTimerTab({ onSessionComplete }: { onSessionComplete: () => void 
       pauseStartRef.current = null;
     }
     setSState('RUNNING');
+    updateFocus({ state: 'RUNNING' });
   }
 
   async function handleStop() {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     const doneSoFar = focusDoneRef.current;
     const id = sessionIdRef.current;
+    clearFocus();
     if (id != null && doneSoFar >= 1) {
       await api.focus.stopSession(id, doneSoFar).catch(() => {});
       showToast(`Stop — +${doneSoFar} min salvati`);
@@ -428,6 +443,11 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
         setProject(active.project ?? '');
         if (rem > 0) {
           setTimerState('RUNNING');
+          updateFocus({
+            active: true, mode: 'pomodoro', state: 'RUNNING',
+            phase: 'focus', remainSec: rem, totalSec: pomoDurationSec,
+            project: active.project ?? undefined,
+          });
         } else {
           // Pomodoro already over, treat as completed
           handleAutoComplete(active.id, active.started_at);
@@ -448,6 +468,7 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
           const elapsed    = rawElapsed - pausedSec;
           const rem = Math.max(0, pomoDurationSec - elapsed);
           setRemaining(rem);
+          updateFocus({ remainSec: rem });
           if (rem === 0) {
             clearInterval(intervalRef.current!);
             intervalRef.current = null;
@@ -473,6 +494,8 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
   function handleAutoComplete(id: number, sa: string) {
     const elapsedMs   = Date.now() - toUTC(sa) - totalPausedMsRef.current;
     const durationMin = Math.round(elapsedMs / 60000);
+    soundSessionEnd();
+    clearFocus();
     api.focus.stopSession(id, durationMin).then(() => {
       showToast(`${t('focus.completed')} +${durationMin} min`);
       resetTimer();
@@ -508,6 +531,12 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
       setStartedAt(res.started_at);
       setRemaining(pomoDurationSec);
       setTimerState('RUNNING');
+      soundFocusStart();
+      updateFocus({
+        active: true, mode: 'pomodoro', state: 'RUNNING',
+        phase: 'focus', remainSec: pomoDurationSec, totalSec: pomoDurationSec,
+        project: project || undefined,
+      });
     } catch (e) {
       console.error('focus:startSession error', e);
     }
@@ -516,6 +545,7 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
   function handlePause() {
     pausedStartRef.current = Date.now();
     setTimerState('PAUSED');
+    updateFocus({ state: 'PAUSED' });
   }
 
   function handleResume() {
@@ -524,14 +554,16 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
       pausedStartRef.current = null;
     }
     setTimerState('RUNNING');
+    updateFocus({ state: 'RUNNING' });
   }
 
   async function handleStop() {
-    if (sessionId == null || startedAt == null) { resetTimer(); return; }
+    if (sessionId == null || startedAt == null) { resetTimer(); clearFocus(); return; }
     // If we're stopping while paused, count that pause segment too
     const extraPausedMs = pausedStartRef.current != null ? Date.now() - pausedStartRef.current : 0;
     const elapsedMs     = Date.now() - toUTC(startedAt) - totalPausedMsRef.current - extraPausedMs;
     const durationMin   = Math.max(1, Math.round(elapsedMs / 60000));
+    clearFocus();
     try {
       await api.focus.stopSession(sessionId, durationMin);
       showToast(`${t('focus.completed')} +${durationMin} min`);
@@ -854,18 +886,21 @@ function HistoryTab() {
             ))}
           </div>
         ) : (
-          <div style={{ color: 'var(--fb-text-3)', fontSize: 13, fontStyle: 'italic', padding: '8px 0' }}>
-            No sessions for this date.
-          </div>
+          <EmptyState
+            compact
+            icon="⏳"
+            title={t('common.noSessionThisDate')}
+            description={t('focus.noSessionDesc')}
+          />
         )}
 
         {dayStats && dayStats.total_min > 0 && (
           <div style={{ display: 'flex', gap: 16, borderTop: '1px solid var(--fb-border)', paddingTop: 10 }}>
             <span style={{ fontSize: 12, color: 'var(--fb-text-2)' }}>
-              Total: <strong style={{ color: 'var(--fb-text)' }}>{formatDurationShort(dayStats.total_min)}</strong>
+              {t('focus.total')}: <strong style={{ color: 'var(--fb-text)' }}>{formatDurationShort(dayStats.total_min)}</strong>
             </span>
             <span style={{ fontSize: 12, color: 'var(--fb-text-2)' }}>
-              Sessions: <strong style={{ color: 'var(--fb-text)' }}>{dayStats.completed_sessions}</strong>
+              {t('focus.sessions')}: <strong style={{ color: 'var(--fb-text)' }}>{dayStats.completed_sessions}</strong>
             </span>
           </div>
         )}

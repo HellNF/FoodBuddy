@@ -40,6 +40,69 @@ const registerMealSuggestionsIpc  = require('./ipc/meal_suggestions.ipc');
 const { startMealReminders, stopMealReminders } = require('./lib/meal_reminders');
 
 let mainWindow;
+let miniWindow = null;
+let focusSnapshot = {
+  active: false, mode: 'pomodoro', state: 'IDLE',
+  phase: 'focus', remainSec: 0, totalSec: 0,
+};
+
+function getMiniUrl() {
+  const isDev = !app.isPackaged;
+  return isDev
+    ? 'http://localhost:5199/#mini-focus'
+    : `file://${path.join(__dirname, '../dist/index.html')}#mini-focus`;
+}
+
+function openMiniWidget() {
+  if (miniWindow && !miniWindow.isDestroyed()) { miniWindow.show(); return; }
+  const { screen } = require('electron');
+  const { workArea } = screen.getPrimaryDisplay();
+  const W = 320, H = 100, M = 20;
+  miniWindow = new BrowserWindow({
+    width: W, height: H,
+    x: workArea.x + workArea.width - W - M,
+    y: workArea.y + workArea.height - H - M,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  miniWindow.loadURL(getMiniUrl());
+  miniWindow.setAlwaysOnTop(true, 'floating');
+  miniWindow.once('ready-to-show', () => {
+    miniWindow.show();
+    if (miniWindow.webContents) {
+      miniWindow.webContents.send('focus:snapshot', focusSnapshot);
+    }
+  });
+  miniWindow.on('closed', () => { miniWindow = null; });
+}
+
+function closeMiniWidget() {
+  if (miniWindow && !miniWindow.isDestroyed()) {
+    miniWindow.close();
+  }
+  miniWindow = null;
+}
+
+function pushFocusSnapshot() {
+  if (miniWindow && !miniWindow.isDestroyed()) {
+    miniWindow.webContents.send('focus:snapshot', focusSnapshot);
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -70,6 +133,12 @@ function createWindow() {
     mainWindow.maximize();
     mainWindow.show();
   });
+
+  mainWindow.on('minimize', () => {
+    if (focusSnapshot.active) openMiniWidget();
+  });
+  mainWindow.on('restore', () => { closeMiniWidget(); });
+  mainWindow.on('focus',   () => { if (!mainWindow.isMinimized()) closeMiniWidget(); });
 
   mainWindow.webContents.on('console-message', (_e, level, msg, line, src) => {
     const tag = ['V','I','W','E'][level] || '?';
@@ -132,6 +201,24 @@ app.whenReady().then(async () => {
   registerGamificationIpc();
   registerInsightsIpc();
   registerMealSuggestionsIpc();
+
+  ipcMain.handle('focus:setLock', (_e, snap) => {
+    const wasActive = focusSnapshot.active;
+    focusSnapshot = snap && typeof snap === 'object' ? snap : focusSnapshot;
+    pushFocusSnapshot();
+    if (!focusSnapshot.active && wasActive) closeMiniWidget();
+    return true;
+  });
+  ipcMain.handle('focus:getLock', () => focusSnapshot);
+  ipcMain.handle('focus:restoreMain', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+    closeMiniWidget();
+    return true;
+  });
 
   createWindow();
 

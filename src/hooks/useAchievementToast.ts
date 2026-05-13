@@ -9,7 +9,7 @@ export function useAchievementToast() {
     for (const a of achievements) {
       setTimeout(() => {
         const msg = t('gamification.achievement').replace('{name}', a.name);
-        showToast(`${a.icon} ${msg}`, 4000);
+        showToast(`${a.icon} ${msg}`, { type: 'success', duration: 4000 });
       }, 500);
     }
   };

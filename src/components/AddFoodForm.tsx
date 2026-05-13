@@ -234,7 +234,7 @@ export default function AddFoodForm({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span style={eyebrow}>{t('foods.addTitle')}</span>
             <span style={{ ...serifItalic, fontSize: 22, fontWeight: 400, color: 'var(--fb-text)', lineHeight: 1.1 }}>
-              {addForm.name.trim() || (formOpen ? 'Nuovo prodotto' : 'Aggiungi un alimento')}
+              {addForm.name.trim() || (formOpen ? t('common.newProduct') : t('common.addFood'))}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>

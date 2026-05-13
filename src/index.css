@@ -24,6 +24,16 @@
   --font-body:        "Inter", system-ui, sans-serif;
   --font-serif:       "Fraunces", "Iowan Old Style", Georgia, serif;
   --font-mono:        "JetBrains Mono", ui-monospace, monospace;
+
+  /* Motion tokens — Emil-style strong custom curves */
+  --ease-out-strong:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer:        cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press:    140ms;
+  --dur-hover:    180ms;
+  --dur-popover:  200ms;
+  --dur-modal:    240ms;
+  --press-scale:  0.97;
 }
 
 /* ── FB animations ── */
@@ -47,6 +57,18 @@
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(30px); }
   to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fb-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fb-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fb-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ── Utility ── */
@@ -170,6 +192,68 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .bar-orange { background: #c05818; }
 .bar-red    { background: var(--red); }
 
+/* ── Microinteractions ── */
+
+/* Global press feedback on all interactive controls. Subtle scale on :active
+   gives instant tactile response. Specify transform only to avoid clobbering
+   per-component transitions on other properties. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="switch"],
+[role="tab"],
+a[href],
+summary {
+  transition: transform var(--dur-press) var(--ease-out-strong);
+}
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+[role="switch"]:active,
+[role="tab"]:active,
+a[href]:active,
+summary:active {
+  transform: scale(var(--press-scale));
+}
+/* Opt-out: components that already manage their own active transform. */
+.no-press, .no-press:active { transform: none !important; }
+
+/* Press utility for non-button elements (Nav items, custom rows). */
+.fb-press {
+  transition: transform var(--dur-press) var(--ease-out-strong);
+}
+.fb-press:active { transform: scale(var(--press-scale)); }
+
+/* Focus-visible: discreet accent ring, keyboard-only. */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="switch"]:focus-visible,
+[role="tab"]:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--fb-accent);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* Hover gating: only enable hover styles on real pointers. Touch devices
+   trigger hover on tap which causes false positives. */
+@media (hover: none) {
+  .fb-hover-lift:hover { transform: none; }
+}
+
+/* Reduced motion: keep opacity/color transitions for comprehension, kill movement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  button:active, [role="button"]:active, .fb-press:active { transform: none; }
+}
+
 /* ── Barcode scanner: mirror preview only (raw frame stays normal for decoding) ── */
 #barcode-reader video { transform: scaleX(-1); }
 
@@ -235,6 +319,70 @@ body.light ::-webkit-scrollbar-thumb:hover {
   .dash-secondary-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Dashboard bento grid (12-col, iOS widget sizes) ── */
+.dash-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  /* minmax: rows are at least 152px, but grow if content needs more space.
+     Without this, diary/secondary/collapsibles overflow and overlap. */
+  grid-auto-rows: minmax(152px, auto);
+  grid-auto-flow: dense;
+  gap: 14px;
+  align-items: stretch;
+}
+/* Card content fills bento cell height */
+.dash-bento-grid > * > * {
+  height: 100%;
+}
+.dash-bento-grid > * { min-width: 0; min-height: 0; }
+
+/* iOS-style widget sizes:
+   XS = square (~150×152)
+   S  = wide pill (~315×152) — 1 row
+   M  = half-width tall (~485×318) — 2 rows
+   L  = full row tall (~1024×318) — full width, 2 rows */
+.dwz-XS { grid-column: span 2;  grid-row: span 1; }
+.dwz-S  { grid-column: span 4;  grid-row: span 1; }
+.dwz-M  { grid-column: span 6;  grid-row: span 2; }
+.dwz-L  { grid-column: span 12; grid-row: span 2; }
+.dwz-XL { grid-column: span 12; grid-row: span 2; }
+.dwz-XL-tall { grid-column: span 12; grid-row: span 3; }
+.dwz-auto { grid-column: span 12; grid-row: auto; } /* content-sized full row (diary etc.) */
+
+/* Card inside DragSection always fills the bento cell */
+.dash-bento-grid > * > * {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1100px) {
+  .dwz-XS { grid-column: span 3; grid-row: span 1; }
+  .dwz-S  { grid-column: span 6; grid-row: span 1; }
+  .dwz-M  { grid-column: span 12; grid-row: span 2; }
+  .dwz-L  { grid-column: span 12; grid-row: span 2; }
+}
+@media (max-width: 720px) {
+  .dwz-XS, .dwz-S, .dwz-M, .dwz-L, .dwz-XL, .dwz-XL-tall, .dwz-auto {
+    grid-column: span 12; grid-row: auto;
+  }
+  .dash-bento-grid { grid-auto-rows: auto; }
+}
+
+/* Edit-mode iOS wiggle */
+@keyframes dash-wiggle-a {
+  0%, 100% { transform: rotate(-0.45deg); }
+  50%      { transform: rotate(0.5deg); }
+}
+@keyframes dash-wiggle-b {
+  0%, 100% { transform: rotate(0.55deg); }
+  50%      { transform: rotate(-0.45deg); }
+}
+.dash-wiggle:nth-child(odd)  { animation: dash-wiggle-a 1.6s ease-in-out infinite; transform-origin: 50% 50%; }
+.dash-wiggle:nth-child(even) { animation: dash-wiggle-b 1.6s ease-in-out infinite; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-wiggle:nth-child(odd), .dash-wiggle:nth-child(even) { animation: none; }
 }
 
 /* Completely hidden (used on horizontal chip rows, etc.) */

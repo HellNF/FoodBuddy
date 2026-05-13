@@ -142,7 +142,7 @@ function AddSetForm({ sessionId, onAdded, exercises }: AddSetFormProps) {
         disabled={saving || (!reps && !weight)}
         style={pillPrimary}
       >
-        Aggiungi
+        {t('common.add')}
       </button>
     </div>
   );
@@ -262,7 +262,7 @@ function ActiveSessionView({ session, onRefresh }: ActiveSessionViewProps) {
   return (
     <div style={{ ...cardOuter, borderColor: 'var(--fb-accent)', boxShadow: '0 0 0 1px var(--fb-accent)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={eyebrow}>Sessione attiva</div>
+        <div style={eyebrow}>{t('workouts.activeSession')}</div>
         <span style={{ fontSize: 10, color: 'var(--fb-text-3)' }}>
           {session.started_at ? new Date(session.started_at.includes('T') ? session.started_at : session.started_at + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
         </span>

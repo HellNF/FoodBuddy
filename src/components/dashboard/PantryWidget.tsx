@@ -8,26 +8,38 @@ interface PantryWidgetProps {
 
 export default function PantryWidget({ enabled, lowItems }: PantryWidgetProps) {
   const { t } = useT();
-  const card = fbCard;
+  const lowCount = lowItems.length;
 
   return (
-    <div style={card}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, fontWeight: 400, color: 'var(--fb-text)' }}>{t('nav.pantry')}</span>
-        {lowItems.length > 0 && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--fb-amber)', background: 'rgba(224,169,58,0.1)', padding: '3px 8px', borderRadius: 99 }}>{t('dash.pantryLow')}</span>
+    <div style={{ ...fbCard, height: '100%', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>🥫 {t('nav.pantry')}</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+            <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 28, color: lowCount > 0 ? 'var(--fb-amber)' : 'var(--fb-text)' }}>
+              {lowCount}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>{lowCount === 1 ? 'item in basso' : 'items in basso'}</span>
+          </div>
+        </div>
+        {lowCount > 0 && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--fb-amber)', background: 'color-mix(in srgb, var(--fb-amber) 14%, transparent)', padding: '3px 8px', borderRadius: 99, border: '1px solid var(--fb-amber)' }}>⚠ Low</span>
         )}
       </div>
+
       {!enabled ? (
-        <p style={{ fontSize: 11.5, color: 'var(--fb-text-3)', fontStyle: 'italic', margin: 0 }}>{t('dash.pantryDisabled')}</p>
-      ) : lowItems.length === 0 ? (
-        <p style={{ fontSize: 11.5, color: 'var(--fb-text-3)', fontStyle: 'italic', margin: 0 }}>{t('dash.pantryEmpty')}</p>
+        <span style={{ fontSize: 11.5, color: 'var(--fb-text-3)', fontStyle: 'italic' }}>{t('dash.pantryDisabled')}</span>
+      ) : lowCount === 0 ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'color-mix(in srgb, var(--fb-green) 8%, var(--fb-bg-2))', border: '1px solid color-mix(in srgb, var(--fb-green) 30%, var(--fb-border))', borderRadius: 8 }}>
+          <span style={{ fontSize: 14 }}>✓</span>
+          <span style={{ fontSize: 11.5, color: 'var(--fb-green)', fontWeight: 600 }}>{t('dash.pantryEmpty')}</span>
+        </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {lowItems.map((p, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5 }}>
-              <span style={{ color: 'var(--fb-text)' }}>{p.name}</span>
-              <span className="tnum" style={{ color: 'var(--fb-amber)', fontWeight: 600 }}>{p.qty} {p.unit}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {lowItems.slice(0, 6).map((p, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: 'var(--fb-bg-2)', borderRadius: 6 }}>
+              <span style={{ fontSize: 11.5, flex: 1, color: 'var(--fb-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              <span className="tnum" style={{ fontSize: 11, color: 'var(--fb-amber)', fontWeight: 700 }}>{p.qty} {p.unit}</span>
             </div>
           ))}
         </div>

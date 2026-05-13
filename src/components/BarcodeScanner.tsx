@@ -1,5 +1,6 @@
 import { Component, useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { useT } from '../i18n/useT';
 
 interface BarcodeScannerProps {
   onResult: (barcode: string) => void;
@@ -59,6 +60,7 @@ export default function BarcodeScanner(props: BarcodeScannerProps) {
 }
 
 function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
+  const { t } = useT();
   const containerRef  = useRef<HTMLDivElement>(null);
   const scannerRef    = useRef<Html5Qrcode | null>(null);
   const scannedRef    = useRef(false);
@@ -79,10 +81,10 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
             ?? devices[0];
           setSelectedCamera(preferred.id);
         } else {
-          setError('Nessuna fotocamera disponibile');
+          setError(t('common.noCamera'));
         }
       })
-      .catch(() => setError('Accesso alla fotocamera negato'));
+      .catch(() => setError(t('common.cameraDenied')));
   }, []);
 
   useEffect(() => {

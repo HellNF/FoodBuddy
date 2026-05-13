@@ -2,10 +2,43 @@ import { useState, useEffect } from 'react';
 
 const DB_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json';
 const BASE_IMG_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
+const LS_KEY = 'exercise_db_cache';
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-// In-memory cache
+// In-memory cache (warm after first access per session)
 let cachedExercises: any[] | null = null;
 let fetchingPromise: Promise<any[]> | null = null;
+
+function loadFromStorage(): any[] | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > TTL_MS) { localStorage.removeItem(LS_KEY); return null; }
+    return data;
+  } catch { return null; }
+}
+
+function saveToStorage(data: any[]): void {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* localStorage pieno: si usa solo in-memory */ }
+}
+
+async function getExercises(): Promise<any[]> {
+  if (cachedExercises) return cachedExercises;
+
+  const stored = loadFromStorage();
+  if (stored) { cachedExercises = stored; return stored; }
+
+  if (!fetchingPromise) {
+    fetchingPromise = fetch(DB_URL)
+      .then(r => r.json())
+      .then(data => { saveToStorage(data); return data; });
+  }
+  cachedExercises = await fetchingPromise;
+  return cachedExercises!;
+}
 
 export function useExerciseImages(exerciseName: string) {
   const [images, setImages] = useState<string[]>([]);
@@ -16,45 +49,29 @@ export function useExerciseImages(exerciseName: string) {
 
     async function fetchMatches() {
       try {
-        if (!cachedExercises) {
-          if (!fetchingPromise) {
-            fetchingPromise = fetch(DB_URL).then(r => r.json());
-          }
-          cachedExercises = await fetchingPromise;
-        }
+        const exercises = await getExercises();
+        if (!isMounted) return;
 
-        if (!isMounted || !cachedExercises) return;
-
-        // Fuzzy match: remove special chars, spaces, and make lowercase
         const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
         const target = normalize(exerciseName);
 
-        // 1. Try exact normalized match
-        let match = cachedExercises.find(ex => normalize(ex.name) === target);
-
-        // 2. Try includes match
+        let match = exercises.find(ex => normalize(ex.name) === target);
         if (!match) {
-          match = cachedExercises.find(ex => normalize(ex.name).includes(target) || target.includes(normalize(ex.name)));
+          match = exercises.find(ex => normalize(ex.name).includes(target) || target.includes(normalize(ex.name)));
         }
 
-        if (match && match.images && match.images.length > 0) {
-          // Images in DB are like "3_4_Sit-Up/0.jpg", we prepend the base URL
-          setImages(match.images.map((img: string) => `${BASE_IMG_URL}${img}`));
-        } else {
-          setImages([]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch exercise images:', error);
+        setImages(match?.images?.length
+          ? match.images.map((img: string) => `${BASE_IMG_URL}${img}`)
+          : []);
+      } catch {
+        if (isMounted) setImages([]);
       } finally {
         if (isMounted) setLoading(false);
       }
     }
 
     fetchMatches();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [exerciseName]);
 
   return { images, loading };

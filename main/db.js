@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 const { app } = require('electron');
 
 let db;
@@ -284,6 +285,7 @@ function initDb() {
     "ALTER TABLE exercise_types ADD COLUMN is_custom INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE exercises ADD COLUMN schedule_id INTEGER",
     "ALTER TABLE exercises ADD COLUMN workout_session_id INTEGER",
+    "ALTER TABLE workout_schedule ADD COLUMN workout_session_id INTEGER",
     "ALTER TABLE supplements ADD COLUMN deleted_at TEXT",
     "ALTER TABLE supplements ADD COLUMN description TEXT",
     `CREATE TABLE IF NOT EXISTS supplement_dosages (
@@ -553,157 +555,35 @@ function initDb() {
     insertSetting.run(key, val);
   }
 
-  // Seed default exercise types (name, met_value, category, muscle_groups, equipment)
-  const insertExType = database.prepare(
-    'INSERT OR IGNORE INTO exercise_types (name, met_value, category, muscle_groups, equipment, instructions, is_custom) VALUES (?, ?, ?, ?, ?, ?, 0)'
-  );
-  for (const [name, met, cat, muscles, equip, instructions] of [
-    // Cardio
-    ['Running',              9.8,  'cardio',      'quadriceps,hamstrings,calves,glutes',        '', ''],
-    ['Cycling',              7.5,  'cardio',      'quadriceps,hamstrings,glutes,calves',         'bike', ''],
-    ['Swimming',             8.0,  'cardio',      'full_body',                                   '', ''],
-    ['Walking',              3.5,  'cardio',      'quadriceps,calves,glutes',                    '', ''],
-    ['HIIT',                 8.0,  'cardio',      'full_body',                                   '', ''],
-    ['Jump Rope',           11.0,  'cardio',      'calves,quadriceps,shoulders',                 'jump_rope', ''],
-    ['Rowing',               7.0,  'cardio',      'back,biceps,quadriceps,glutes',               'rowing_machine', ''],
-    ['Elliptical',           5.0,  'cardio',      'quadriceps,hamstrings,glutes',                'machine', ''],
-    ['Stair Climbing',       8.0,  'cardio',      'quadriceps,glutes,calves',                    'machine', ''],
-    ['Boxing',               9.0,  'cardio',      'shoulders,biceps,triceps,abs',                '', ''],
-    // Strength — Chest
-    ['Bench Press',          6.0,  'strength',    'chest,triceps,shoulders',                     'barbell,bench', ''],
-    ['Incline Bench Press',  6.0,  'strength',    'chest,triceps,shoulders',                     'barbell,bench', ''],
-    ['Dumbbell Flyes',       4.0,  'strength',    'chest,shoulders',                             'dumbbell,bench', ''],
-    ['Push-ups',             5.0,  'strength',    'chest,triceps,shoulders',                     '', 'EN: Keep your body in a straight line, lower until your chest is close to the floor, then push back up.\nIT: Mantieni il corpo in linea retta, scendi fino a sfiorare il pavimento con il petto, poi spingi per risalire.'],
-    ['Cable Crossover',      4.0,  'strength',    'chest,shoulders',                             'cable', ''],
-    ['Floor Press',          5.5,  'strength',    'chest,triceps,shoulders',                     'dumbbell', 'EN: Lie on the floor, press dumbbells up until arms are fully extended.\nIT: Disteso a terra, spingi i manubri verso l\'alto flettendo e stendendo le braccia.'],
-    ['Bridge Press',         5.5,  'strength',    'chest,triceps,shoulders,glutes',              'dumbbell', 'EN: Floor press while maintaining a glute bridge position.\nIT: Floor press eseguita mantenendo il bacino sollevato (ponte glutei).'],
-    // Strength — Back
-    ['Deadlift',             6.0,  'strength',    'back,glutes,hamstrings,forearms',             'barbell', ''],
-    ['Barbell Row',          6.0,  'strength',    'back,biceps,forearms',                        'barbell', ''],
-    ['Lat Pulldown',         5.0,  'strength',    'back,biceps',                                 'machine,cable', ''],
-    ['Pull-ups',             8.0,  'strength',    'back,biceps',                                 'pull_up_bar', 'EN: Hang from a bar, pull yourself up until your chin passes the bar, lower with control.\nIT: Appenditi a una sbarra, tirati su fino a superarla col mento, scendi con controllo.'],
-    ['Seated Cable Row',     5.0,  'strength',    'back,biceps',                                 'cable', ''],
-    ['Dumbbell Row',         5.0,  'strength',    'back,biceps',                                 'dumbbell', 'EN: Support one knee and hand on a bench, pull the dumbbell up to your hip keeping your back straight.\nIT: Appoggia ginocchio e mano su una panca, tira il manubrio fino all\'anca mantenendo la schiena dritta.'],
-    ['Gorilla Row',          5.5,  'strength',    'back,biceps',                                 'dumbbell', 'EN: Alternate rowing dumbbells from the floor while maintaining a bent-over position.\nIT: Remata alternata partendo col busto flesso quasi parallelo al suolo (manubri a terra).'],
-    ['Pullover',             4.5,  'strength',    'back,chest',                                  'dumbbell,bench', 'EN: Lie on a bench, lower a dumbbell behind your head with slightly bent arms, pull it back over your chest.\nIT: Sdraiato, abbassa il manubrio dietro la testa con braccia semi-tese, torna sopra il petto.'],
-    ['Shrugs',               3.5,  'strength',    'traps',                                       'dumbbell', 'EN: Stand straight, hold dumbbells at your sides, and shrug your shoulders up.\nIT: In piedi, solleva o "scrolla" le spalle verso l\'alto tenendo le braccia dritte.'],
-    // Strength — Shoulders
-    ['Overhead Press',       6.0,  'strength',    'shoulders,triceps',                           'barbell', ''],
-    ['Dumbbell Press',       5.0,  'strength',    'shoulders,triceps',                           'dumbbell', 'EN: Sit or stand, press dumbbells overhead until arms are fully extended.\nIT: Seduto o in piedi, spingi i manubri verso l\'alto fino a stendere completamente le braccia.'],
-    ['Lateral Raises',       3.0,  'strength',    'shoulders',                                   'dumbbell', 'EN: Raise dumbbells to your sides until they reach shoulder height.\nIT: Solleva i manubri lateralmente fino all\'altezza delle spalle.'],
-    ['Face Pulls',           3.0,  'strength',    'shoulders,back',                              'cable', ''],
-    ['Front Raises',         3.0,  'strength',    'shoulders',                                   'dumbbell', 'EN: Raise dumbbells in front of you up to shoulder level.\nIT: Solleva i manubri davanti a te fino all\'altezza delle spalle.'],
-    ['Dumbbell Arnold Press',5.0,  'strength',    'shoulders,triceps',                           'dumbbell', 'EN: Start with dumbbells in front of shoulders, palms facing you. Rotate hands outwards as you press up.\nIT: Inizia con i manubri davanti alle spalle, palmi verso di te. Ruota i polsi verso l\'esterno mentre spingi in alto.'],
-    ['Reverse Flyes',        3.0,  'strength',    'shoulders,back',                              'dumbbell', 'EN: Bend over, raise dumbbells to your sides to train the rear delts.\nIT: Busto flesso (a 90°), solleva i manubri lateralmente per il deltoide posteriore.'],
-    ['Scaption',             3.0,  'strength',    'shoulders',                                   'dumbbell', 'EN: Raise dumbbells diagonally (scapular plane).\nIT: Alzate lungo il "piano scapolare" (in diagonale).'],
-    // Strength — Arms
-    ['Barbell Curl',         4.0,  'strength',    'biceps,forearms',                             'barbell', ''],
-    ['Dumbbell Curl',        4.0,  'strength',    'biceps,forearms',                             'dumbbell', 'EN: Curl the dumbbells towards your shoulders, keeping your elbows stationary.\nIT: Fletti i manubri verso le spalle, mantenendo i gomiti fermi lungo i fianchi.'],
-    ['Hammer Curl',          4.0,  'strength',    'biceps,forearms',                             'dumbbell', 'EN: Curl dumbbells with palms facing each other.\nIT: Fletti i manubri mantenendo i palmi rivolti l\'uno verso l\'altro.'],
-    ['Concentration Curl',   3.5,  'strength',    'biceps',                                      'dumbbell', 'EN: Sit and rest your elbow on your inner thigh, curling the dumbbell up.\nIT: Seduto, gomito appoggiato all\'interno coscia, solleva il manubrio concentrandoti sul bicipite.'],
-    ['Tricep Pushdown',      4.0,  'strength',    'triceps',                                     'cable', ''],
-    ['Skull Crushers',       4.0,  'strength',    'triceps',                                     'barbell,bench', ''],
-    ['Tricep Dips',          5.0,  'strength',    'triceps,chest,shoulders',                     '', 'EN: Lower your body by bending elbows until they are at a 90-degree angle, then push back up.\nIT: Abbassa il corpo piegando i gomiti a 90 gradi, poi spingi per risalire. Ottimo su parallele o sedia/panca.'],
-    ['Tricep Kickback',      3.5,  'strength',    'triceps',                                     'dumbbell', 'EN: Bend over, keep elbow high and extend arm backward.\nIT: Busto flesso, gomito alto, estendi il braccio all\'indietro.'],
-    ['Overhead Tricep Ext',  4.0,  'strength',    'triceps',                                     'dumbbell', 'EN: Hold a dumbbell overhead, lower it behind your head by bending elbows, then press up.\nIT: Estensione singola o a due mani sopra la testa in piedi o seduto.'],
-    // Strength — Legs
-    ['Squat',                6.0,  'strength',    'quadriceps,glutes,hamstrings',                'barbell', ''],
-    ['Bodyweight Squat',     5.0,  'strength',    'quadriceps,glutes,hamstrings',                '', 'EN: Keep chest up, push hips back and bend knees to lower down. Keep weight on your heels.\nIT: Petto in fuori, spingi il bacino indietro e piega le ginocchia. Tieni il peso sui talloni.'],
-    ['Goblet Squat',         5.5,  'strength',    'quadriceps,glutes,core',                      'dumbbell', 'EN: Hold one dumbbell vertically against your chest, perform a squat keeping your torso upright.\nIT: Tieni in verticale un manubrio contro il petto e fai uno squat mantenendo il busto dritto.'],
-    ['Front Squat',          6.0,  'strength',    'quadriceps,glutes,core',                      'dumbbell', 'EN: Hold two dumbbells resting on your shoulders while squatting.\nIT: Due manubri appoggiati alle spalle mentre esegui lo squat.'],
-    ['Sumo Squat',           5.5,  'strength',    'quadriceps,glutes,adductors',                 'dumbbell', 'EN: Wide stance, toes pointed out, hold a dumbbell between your legs.\nIT: Gambe larghe, punte in fuori, manubrio tra le gambe per target anche sull\'interno coscia.'],
-    ['Leg Press',            5.0,  'strength',    'quadriceps,glutes,hamstrings',                'machine', ''],
-    ['Lunges',               5.0,  'strength',    'quadriceps,glutes,hamstrings',                '', 'EN: Step forward and lower hips until both knees are bent at a 90-degree angle.\nIT: Fai un passo in avanti e scendi finché entrambe le ginocchia formano un angolo di 90 gradi.'],
-    ['Dumbbell Lunges',      5.5,  'strength',    'quadriceps,glutes,hamstrings',                'dumbbell', 'EN: Hold dumbbells by your sides. Step forward and lower your body until knees are at 90 degrees.\nIT: Tieni i manubri lungo i fianchi. Affondo in avanti scendendo fino a 90 gradi con le ginocchia.'],
-    ['Lateral Lunges',       5.0,  'strength',    'quadriceps,glutes,adductors',                 'dumbbell', 'EN: Step out to the side, bend that knee while keeping the other leg straight.\nIT: Affondi laterali. Fai un passo di lato piegando il ginocchio spingendo i fianchi indietro.'],
-    ['Bulgarian Split Squat',6.0,  'strength',    'quadriceps,glutes,hamstrings',                'dumbbell', 'EN: Elevate one foot securely on a bench behind you. Lower body until front thigh is parallel to the ground.\nIT: Appoggia un piede dietro di te su un rialzo. Scendi finché la coscia frontale è parallela al suolo.'],
-    ['Step-up',              5.5,  'strength',    'quadriceps,glutes',                           'dumbbell,bench', 'EN: Step up onto a bench or sturdy chair, driving through the front foot.\nIT: Salita su una sedia o gradino con manubri in mano.'],
-    ['Leg Curl',             4.0,  'strength',    'hamstrings',                                  'machine', ''],
-    ['Leg Extension',        4.0,  'strength',    'quadriceps',                                  'machine', ''],
-    ['Calf Raises',          3.5,  'strength',    'calves',                                      'machine', 'EN: Push up onto your toes, squeeze your calves, then lower heels down.\nIT: Spingi in alto sulle punte, contrai i polpacci e poi scendi con i talloni. Fattibile su gradino per maggiore ROM.'],
-    ['Romanian Deadlift',    6.0,  'strength',    'hamstrings,glutes,back',                      'barbell', ''],
-    ['Dumbbell RDL',         5.0,  'strength',    'hamstrings,glutes,back',                      'dumbbell', 'EN: Keeping legs mostly straight, push hips back to lower dumbbells along your legs until you feel a stretch.\nIT: Tieni le gambe semitese, spingi indietro il bacino per far scendere i manubri lungo le gambe finché senti stretching sui femorali.'],
-    ['Single Leg RDL',       5.0,  'strength',    'hamstrings,glutes,core',                      'dumbbell', 'EN: RDL performed on one leg for balance and unilateral strength.\nIT: Stacco rumeno su una gamba sola, ottimo per femorali e bilanciamento.'],
-    // Strength — Core & Full body (Home focus)
-    ['Plank',                4.0,  'strength',    'abs,obliques',                                '', 'EN: Hold a push-up position resting on your forearms. Keep body straight and core tight.\nIT: Mantieni la posizione di push-up appoggiando gli avambracci. Corpo in linea e addome contratto.'],
-    ['Crunches',             3.5,  'strength',    'abs',                                         '', 'EN: Lie on back with bent knees. Contract abs to lift your shoulder blades off the floor.\nIT: Supino, ginocchia piegate. Contrai l\'addome per sollevare le scapole da terra.'],
-    ['Hanging Leg Raises',   4.0,  'strength',    'abs,obliques',                                'pull_up_bar', 'EN: Hang from a bar, raise legs up until parallel to floor keeping them straight.\nIT: Appeso, solleva le gambe tese finché sono parallele al suolo.'],
-    ['Russian Twists',       3.5,  'strength',    'obliques,abs',                                '', 'EN: Sit with torso leaning back, feet slightly elevated. Twist your torso from side to side.\nIT: Seduto col busto inclinato all\'indietro, piedi sollevati. Ruota il busto da destra a sinistra (meglio se tieni un peso).'],
-    ['Weighted Crunch',      4.0,  'strength',    'abs',                                         'dumbbell', 'EN: Classic crunch while holding a dumbbell against your chest.\nIT: Crunch classico mantenendo un manubrio stretto al petto.'],
-    ['Mountain Climbers',    8.0,  'strength',    'abs,full_body',                               '', 'EN: From a push-up position, quickly alternate bringing your knees towards your chest.\nIT: Dalla posizione di push-up, porta alternativamente e velocemente le ginocchia verso il petto.'],
-    ['Burpees',              8.5,  'strength',    'full_body,cardio',                            '', 'EN: Drop into a squat, kick feet back to a plank, do a push-up, jump feet in, and stand/jump up.\nIT: Scendi in squat, lancia i piedi indietro in plank, fai un push-up, raccogli le gambe e salta in alto.'],
-    ['Glute Bridge',         4.0,  'strength',    'glutes,hamstrings',                           '', 'EN: Lie on back, bend knees, feet flat. Push through heels to lift hips towards the ceiling.\nIT: Supino, ginocchia piegate. Spingi con i talloni per sollevare il bacino verso il soffitto.'],
-    ['Hip Thrust',           5.0,  'strength',    'glutes,hamstrings',                           'dumbbell,bench', 'EN: Rest your upper back on a bench, hold a weight on your hips, and thrust up.\nIT: Poggiando le scapole sul divano o panca, peso sul bacino, sollevati spingendo con i glutei.'],
-    ['Renegade Row',         6.0,  'strength',    'back,core,full_body',                         'dumbbell', 'EN: In a push-up position holding dumbbells, alternate rowing one dumbbell up while balancing on the other.\nIT: In posizione push-up sui manubri, esegui un rematore alternato tenendo l\'equilibrio sull\'altro manubrio.'],
-    ['Suitcase Carry',       4.5,  'strength',    'core,obliques',                               'dumbbell', 'EN: Walk while holding a heavy dumbbell in only one hand.\nIT: Cammina mantenendo un manubrio in una sola mano per allenare la stabilità laterale (anti-flessione).'],
-    ['Dumbbell Thruster',    6.5,  'strength',    'quadriceps,shoulders,full_body',              'dumbbell', 'EN: Hold dumbbells at shoulder height. Front squat down, then press dumbbells overhead as you stand up.\nIT: Manubri alle spalle. Fai uno squat e, risalendo, spingi i manubri sopra la testa in un unico movimento.'],
-    // Strength — legacy (keep for backwards compat)
-    ['Weight Training',      6.0,  'strength',    'full_body',                                   'barbell,dumbbell', ''],
-    ['Calisthenics',         8.0,  'strength',    'full_body',                                   'pull_up_bar', ''],
-    // Flexibility
-    ['Yoga',                 3.0,  'flexibility', 'full_body',                                   'mat', ''],
-    ['Stretching',           2.5,  'flexibility', 'full_body',                                   'mat', ''],
-    ['Foam Rolling',         2.0,  'flexibility', 'full_body',                                   'mat', ''],
-    ['Pilates',              3.5,  'flexibility', 'abs,back,full_body',                          'mat', ''],
-    // Other
-    ['Other',                5.0,  'other',       '',                                            '', ''],
-    ['Sport',                7.0,  'other',       'full_body',                                   '', ''],
-  ]) {
-    insertExType.run(name, met, cat, muscles, equip, instructions);
-  }
+  // Seed exercise types from free-exercise-db (one-time migration, version-gated)
+  const EX_SEED_VERSION = '2';
+  const exVerRow = database.prepare("SELECT value FROM settings WHERE key='exercise_db_version'").get();
+  if (!exVerRow || exVerRow.value !== EX_SEED_VERSION) {
+    try {
+      // Remove old built-in exercises not referenced in any workout plan
+      database.prepare(`
+        DELETE FROM exercise_types
+        WHERE is_custom = 0
+        AND id NOT IN (
+          SELECT exercise_type_id FROM workout_plan_exercises WHERE exercise_type_id IS NOT NULL
+        )
+      `).run();
 
-  // Backfill muscle_groups/equipment on existing rows that pre-date this migration
-  const backfillEx = database.prepare(
-    "UPDATE exercise_types SET muscle_groups=?, equipment=? WHERE name=? AND muscle_groups=''"
-  );
-  for (const [name, muscles, equip] of [
-    ['Running',         'quadriceps,hamstrings,calves,glutes',  ''],
-    ['Cycling',         'quadriceps,hamstrings,glutes,calves',  'bike'],
-    ['Swimming',        'full_body',                             ''],
-    ['Walking',         'quadriceps,calves,glutes',              ''],
-    ['HIIT',            'full_body',                             ''],
-    ['Weight Training', 'full_body',                             'barbell,dumbbell'],
-    ['Calisthenics',    'full_body',                             'pull_up_bar'],
-    ['Yoga',            'full_body',                             'mat'],
-    ['Stretching',      'full_body',                             'mat'],
-    ['Other',           '',                                      ''],
-  ]) {
-    backfillEx.run(muscles, equip, name);
-  }
-
-  // Add explicit backfill for new bodyweight/instruction setups
-  const backfillInst = database.prepare(
-    "UPDATE exercise_types SET instructions=? WHERE name=? AND (instructions IS NULL OR instructions='')"
-  );
-  for (const [name, instructions] of [
-    ['Push-ups', 'EN: Keep your body in a straight line, lower until your chest is close to the floor, then push back up.\nIT: Mantieni il corpo in linea retta, scendi fino a sfiorare il pavimento con il petto, poi spingi per risalire.'],
-    ['Pull-ups', 'EN: Hang from a bar, pull yourself up until your chin passes the bar, lower with control.\nIT: Appenditi a una sbarra, tirati su fino a superarla col mento, scendi con controllo.'],
-    ['Dumbbell Row', 'EN: Support one knee and hand on a bench, pull the dumbbell up to your hip keeping your back straight.\nIT: Appoggia ginocchio e mano su una panca, tira il manubrio fino all\'anca mantenendo la schiena dritta.'],
-    ['Dumbbell Press', 'EN: Sit or stand, press dumbbells overhead until arms are fully extended.\nIT: Seduto o in piedi, spingi i manubri verso l\'alto fino a stendere completamente le braccia.'],
-    ['Lateral Raises', 'EN: Raise dumbbells to your sides until they reach shoulder height.\nIT: Solleva i manubri lateralmente fino all\'altezza delle spalle.'],
-    ['Front Raises', 'EN: Raise dumbbells in front of you up to shoulder level.\nIT: Solleva i manubri davanti a te fino all\'altezza delle spalle.'],
-    ['Dumbbell Arnold Press', 'EN: Start with dumbbells in front of shoulders, palms facing you. Rotate hands outwards as you press up.\nIT: Inizia con i manubri davanti alle spalle, palmi verso di te. Ruota i polsi verso l\'esterno mentre spingi in alto.'],
-    ['Dumbbell Curl', 'EN: Curl the dumbbells towards your shoulders, keeping your elbows stationary.\nIT: Fletti i manubri verso le spalle, mantenendo i gomiti fermi lungo i fianchi.'],
-    ['Hammer Curl', 'EN: Curl dumbbells with palms facing each other.\nIT: Fletti i manubri mantenendo i palmi rivolti l\'uno verso l\'altro.'],
-    ['Tricep Dips', 'EN: Lower your body by bending elbows until they are at a 90-degree angle, then push back up.\nIT: Abbassa il corpo piegando i gomiti a 90 gradi, poi spingi per risalire.'],
-    ['Bodyweight Squat', 'EN: Keep chest up, push hips back and bend knees to lower down. Keep weight on your heels.\nIT: Petto in fuori, spingi il bacino indietro e piega le ginocchia. Tieni il peso sui talloni.'],
-    ['Goblet Squat', 'EN: Hold one dumbbell vertically against your chest, perform a squat keeping your torso upright.\nIT: Tieni in verticale un manubrio contro il petto e fai uno squat mantenendo il busto dritto.'],
-    ['Lunges', 'EN: Step forward and lower hips until both knees are bent at a 90-degree angle.\nIT: Fai un passo in avanti e scendi finché entrambe le ginocchia formano un angolo di 90 gradi.'],
-    ['Dumbbell Lunges', 'EN: Hold dumbbells by your sides. Step forward and lower your body until knees are at 90 degrees.\nIT: Tieni i manubri lungo i fianchi. Affondo in avanti scendendo fino a 90 gradi con le ginocchia.'],
-    ['Bulgarian Split Squat', 'EN: Elevate one foot securely on a bench behind you. Lower body until front thigh is parallel to the ground.\nIT: Appoggia un piede dietro di te su un rialzo. Scendi finché la coscia frontale è parallela al suolo.'],
-    ['Calf Raises', 'EN: Push up onto your toes, squeeze your calves, then lower heels down.\nIT: Spingi in alto sulle punte, contrai i polpacci e poi scendi con i talloni.'],
-    ['Dumbbell RDL', 'EN: Keeping legs mostly straight, push hips back to lower dumbbells along your legs until you feel a stretch.\nIT: Tieni le gambe semitese, spingi indietro il bacino per far scendere i manubri lungo le gambe finché senti stretching.'],
-    ['Plank', 'EN: Hold a push-up position resting on your forearms. Keep body straight and core tight.\nIT: Mantieni la posizione di push-up appoggiando gli avambracci. Corpo in linea e addome contratto.'],
-    ['Crunches', 'EN: Lie on back with bent knees. Contract abs to lift your shoulder blades off the floor.\nIT: Supino, ginocchia piegate. Contrai l\'addome per sollevare le scapole da terra.'],
-    ['Hanging Leg Raises', 'EN: Hang from a bar, raise legs up until parallel to floor keeping them straight.\nIT: Appeso, solleva le gambe tese finché sono parallele al suolo.'],
-    ['Russian Twists', 'EN: Sit with torso leaning back, feet slightly elevated. Twist your torso from side to side.\nIT: Seduto col busto inclinato all\'indietro, piedi sollevati. Ruota il busto da destra a sinistra.'],
-    ['Mountain Climbers', 'EN: From a push-up position, quickly alternate bringing your knees towards your chest.\nIT: Dalla posizione di push-up, porta alternativamente e velocemente le ginocchia verso il petto.'],
-    ['Burpees', 'EN: Drop into a squat, kick feet back to a plank, do a push-up, jump feet in, and stand/jump up.\nIT: Scendi in squat, lancia i piedi indietro in plank, fai un push-up, raccogli le gambe e salta in alto.'],
-    ['Glute Bridge', 'EN: Lie on back, bend knees, feet flat. Push through heels to lift hips towards the ceiling.\nIT: Supino, ginocchia piegate. Spingi con i talloni per sollevare il bacino verso il soffitto.'],
-    ['Renegade Row', 'EN: In a push-up position holding dumbbells, alternate rowing one dumbbell up while balancing on the other.\nIT: In posizione push-up sui manubri, esegui un rematore alternato tenendo l\'equilibrio sull\'altro manubrio.'],
-    ['Dumbbell Thruster', 'EN: Hold dumbbells at shoulder height. Front squat down, then press dumbbells overhead as you stand up.\nIT: Manubri alle spalle. Fai uno squat e, risalendo, spingi i manubri sopra la testa in un unico movimento.'],
-  ]) {
-    backfillInst.run(instructions, name);
+      const seedPath = path.join(__dirname, 'data/exercises-seed.json');
+      const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+      const insertExType = database.prepare(
+        'INSERT OR IGNORE INTO exercise_types (name, met_value, category, muscle_groups, equipment, instructions, is_custom) VALUES (?, ?, ?, ?, ?, ?, 0)'
+      );
+      const insertMany = database.transaction(rows => {
+        for (const ex of rows) {
+          insertExType.run(ex.name, ex.met_value, ex.category, ex.muscle_groups, ex.equipment, ex.instructions);
+        }
+      });
+      insertMany(seedData);
+      database.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('exercise_db_version', ?)").run(EX_SEED_VERSION);
+    } catch (e) {
+      console.error('Exercise seed import failed:', e);
+    }
   }
 
   // Seed equipment items

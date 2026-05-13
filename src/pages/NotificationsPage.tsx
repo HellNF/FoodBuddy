@@ -61,6 +61,42 @@ function ToggleRow({ label, desc, checked, onChange }: {
   );
 }
 
+function MealReminderRow({ label, enabled, time, onToggle, onTime }: {
+  label: string; enabled: boolean; time: string;
+  onToggle: (v: boolean) => void; onTime: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 gap-4 pl-8">
+      <div className="text-sm text-text">{label}</div>
+      <div className="flex items-center gap-3">
+        <input
+          type="time"
+          value={time}
+          disabled={!enabled}
+          onChange={e => onTime(e.target.value)}
+          className={[
+            'bg-bg border border-border rounded-lg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent',
+            enabled ? '' : 'opacity-40',
+          ].join(' ')}
+        />
+        <button
+          type="button"
+          onClick={() => onToggle(!enabled)}
+          className={[
+            'relative w-10 h-5 rounded-full shrink-0 transition-colors cursor-pointer',
+            enabled ? 'bg-accent' : 'bg-border',
+          ].join(' ')}
+        >
+          <span className={[
+            'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+            enabled ? 'left-[22px]' : 'left-0.5',
+          ].join(' ')} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function NotificationsPage() {
   const { t } = useT();
   const { navigate } = useNavigate();
@@ -356,6 +392,44 @@ export default function NotificationsPage() {
                   />
                 </label>
               </div>
+            )}
+            <ToggleRow
+              label={t('notifications.cfg.mealReminders')}
+              desc={t('notifications.cfg.mealRemindersDesc')}
+              checked={settings.notif_meal_reminders === 1}
+              onChange={v => updateSettings({ notif_meal_reminders: v ? 1 : 0 })}
+            />
+            {settings.notif_meal_reminders === 1 && (
+              <>
+                <MealReminderRow
+                  label={t('notifications.cfg.mealBreakfast')}
+                  enabled={settings.notif_meal_breakfast === 1}
+                  time={settings.notif_meal_breakfast_time}
+                  onToggle={v => updateSettings({ notif_meal_breakfast: v ? 1 : 0 })}
+                  onTime={v => updateSettings({ notif_meal_breakfast_time: v })}
+                />
+                <MealReminderRow
+                  label={t('notifications.cfg.mealLunch')}
+                  enabled={settings.notif_meal_lunch === 1}
+                  time={settings.notif_meal_lunch_time}
+                  onToggle={v => updateSettings({ notif_meal_lunch: v ? 1 : 0 })}
+                  onTime={v => updateSettings({ notif_meal_lunch_time: v })}
+                />
+                <MealReminderRow
+                  label={t('notifications.cfg.mealDinner')}
+                  enabled={settings.notif_meal_dinner === 1}
+                  time={settings.notif_meal_dinner_time}
+                  onToggle={v => updateSettings({ notif_meal_dinner: v ? 1 : 0 })}
+                  onTime={v => updateSettings({ notif_meal_dinner_time: v })}
+                />
+                <MealReminderRow
+                  label={t('notifications.cfg.mealSnack')}
+                  enabled={settings.notif_meal_snack === 1}
+                  time={settings.notif_meal_snack_time}
+                  onToggle={v => updateSettings({ notif_meal_snack: v ? 1 : 0 })}
+                  onTime={v => updateSettings({ notif_meal_snack_time: v })}
+                />
+              </>
             )}
           </div>
         )}
